@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart'; // Para almacenar el token
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -12,40 +10,25 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
+  final AuthService _authService = AuthService(); // <- Instancia del servicio
 
   Future<void> _login() async {
     setState(() => _isLoading = true);
-    final response = await http.post(
-      Uri.parse('http://127.0.0.1:5000/api/auth/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'username': _usernameController.text,
-        'password': _passwordController.text,
-      }),
+
+    final result = await _authService.login(
+      _usernameController.text,
+      _passwordController.text,
     );
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      print(response.body); // Agrega esto para ver la respuesta realprint(response.body); // Agrega esto para ver la respuesta real
-      // Verifica explícitamente si el token existe
-      final data2 = data['data'];
-      final token = data2['token'];
-      final _user = data2['user'];
-      final id_user = _user['id'];
-      if (token == null) {
-        throw Exception('El servidor no devolvió un token');
-      }
+    setState(() => _isLoading = false);
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', token);
-      await prefs.setInt('user_id', id_user);
+    if (result['success']) {
       Navigator.pushReplacementNamed(context, '/dashboard');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: Usuario o contraseña incorrectos')),
+        SnackBar(content: Text(result['message'] ?? 'Error desconocido')),
       );
     }
-    setState(() => _isLoading = false);
   }
 
   @override
@@ -82,9 +65,10 @@ class _LoginScreenState extends State<LoginScreen> {
             SizedBox(height: 25),
             ElevatedButton(
               onPressed: _isLoading ? null : _login,
-              child: _isLoading 
-                  ? CircularProgressIndicator(color: Colors.white)
-                  : Text('Ingresar'),
+              child:
+                  _isLoading
+                      ? CircularProgressIndicator(color: Colors.white)
+                      : Text('Ingresar'),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(vertical: 15),
                 minimumSize: Size(double.infinity, 50),

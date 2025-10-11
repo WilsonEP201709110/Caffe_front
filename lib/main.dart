@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/LoginScreen.dart';
 import 'screens/RegisterScreen.dart';
 import 'screens/DashboardScreen.dart';
@@ -10,8 +11,11 @@ import 'screens/product_datasets_screen.dart';
 import 'screens/dataset_images_screen.dart';
 import 'screens/product_model_screen.dart';
 import 'screens/product_report_screen.dart';
+import 'screens/TrainingHistoryScreen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   runApp(const MyApp());
 }
 
@@ -34,9 +38,10 @@ class MyApp extends StatelessWidget {
         '/products/detail': (context) => ProductDetailScreen(),
         '/detections/new': (context) => NewDetectionScreen(),
         '/products/datasets': (context) => ProductDatasetsScreen(),
-        '/datasets/images':  (context) => DatasetImagesScreen(),
-        '/products/models':  (context) => ProductModelsScreen(),
-        '/products/reports':  (context) => ProductSearchScreen(),
+        '/datasets/images': (context) => DatasetImagesScreen(),
+        '/products/models': (context) => ProductModelsScreen(),
+        '/products/models/history': (context) => TrainingHistoryScreen(),
+        '/products/reports': (context) => ProductSearchScreen(),
       },
     );
   }
