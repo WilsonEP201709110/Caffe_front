@@ -19,6 +19,7 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
   late String? token;
   late int _modelId;
   String? warningMessage;
+  String? successMessage;
 
   @override
   void didChangeDependencies() {
@@ -58,10 +59,16 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
         setState(() {
           trainingDetails = responseData['data']['data'] ?? [];
           String? warning;
+          String? success;
           // Revisa si algún entrenamiento está en 'validando'
           for (var item in trainingDetails) {
             if (item['estado']?.toString().toLowerCase() == 'validando') {
               warning = 'Validando proceso en curso...';
+              break; // Si encuentras uno, ya no necesitas seguir
+            }
+
+            if (item['estado']?.toString().toLowerCase() == 'completado') {
+              success = 'Modelo IA creado...';
               break; // Si encuentras uno, ya no necesitas seguir
             }
           }
@@ -69,6 +76,7 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
           setState(() {
             trainingDetails = trainingDetails;
             warningMessage = warning; // null si no hay ninguno en validando
+            successMessage = success;
           });
         });
       } else {
@@ -385,6 +393,33 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
             ),
           ),
 
+        if (successMessage != null)
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(12),
+            margin: EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Colors.blue[100],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.blue[800]),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    successMessage!,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue[900],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
         Container(
           decoration: BoxDecoration(
             border: Border.all(color: Colors.grey[300]!),
@@ -401,6 +436,7 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
                   final isFailed = currentStatus == 'fallido';
                   final isCanceled = currentStatus == 'cancelado';
                   final isValidando = currentStatus == 'validando';
+                  final isCompletedFinal = currentStatus == 'completado';
 
                   Color bgColor = Colors.transparent;
                   Color textColor = Colors.black;
@@ -484,7 +520,8 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
                         if (isCurrent &&
                             !isFailed &&
                             !isCanceled &&
-                            !isValidando)
+                            !isValidando &&
+                            !isCompletedFinal)
                           ElevatedButton(
                             onPressed:
                                 () => _completeTraining(
