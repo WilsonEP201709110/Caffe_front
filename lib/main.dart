@@ -14,6 +14,7 @@ import 'screens/product_report_screen.dart';
 import 'screens/TrainingHistoryScreen.dart';
 import 'screens/helper_screen.dart';
 import 'screens/about_screen.dart';
+import 'screens/SettingsScreen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,6 +47,7 @@ class MyApp extends StatelessWidget {
         '/products/reports': (context) => ProductSearchScreen(),
         '/helper': (context) => HelperScreen(),
         '/about': (context) => AboutScreen(),
+        '/settings': (context) => SettingsScreen(),
       },
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../theme/app_colors.dart';
 
 class TrainingStatusScreen extends StatefulWidget {
   final int trainingId;
@@ -22,7 +23,6 @@ class _TrainingStatusScreenState extends State<TrainingStatusScreen> {
   @override
   void initState() {
     super.initState();
-    print("Entró a mi componente");
     _loadTokenAndFetch();
   }
 
@@ -57,16 +57,12 @@ class _TrainingStatusScreenState extends State<TrainingStatusScreen> {
       final responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        if (responseData['status'] == 'error') {
-          setState(() {
+        setState(() {
+          trainingData = responseData;
+          if (responseData['status'] == 'error') {
             errorMessage = 'Error en el entrenamiento. Revisa los logs.';
-            trainingData = responseData;
-          });
-        } else {
-          setState(() {
-            trainingData = responseData;
-          });
-        }
+          }
+        });
       } else {
         setState(() {
           errorMessage = 'Error al consultar el estado del entrenamiento.';
@@ -100,23 +96,41 @@ class _TrainingStatusScreenState extends State<TrainingStatusScreen> {
     required IconData icon,
     required String label,
     required String value,
+    Color? iconColor,
   }) {
     return Card(
-      elevation: 3,
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       margin: EdgeInsets.symmetric(vertical: 6),
       child: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Row(
           children: [
-            Icon(icon, color: Colors.blue, size: 30),
+            CircleAvatar(
+              backgroundColor:
+                  iconColor?.withOpacity(0.2) ?? Colors.grey.shade200,
+              child: Icon(icon, color: iconColor ?? Colors.blue, size: 28),
+            ),
             SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.brownDark,
+                    ),
+                  ),
                   SizedBox(height: 4),
-                  Text(value),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      color: AppColors.brownMedium,
+                      fontSize: 15,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -129,31 +143,43 @@ class _TrainingStatusScreenState extends State<TrainingStatusScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.beigeLight,
       appBar: AppBar(
-        title: Text('Estado de Entrenamiento'),
+        title: Text(
+          'Estado de Entrenamiento',
+          style: TextStyle(color: AppColors.white),
+        ),
+        backgroundColor: AppColors.brownDark,
+        foregroundColor: AppColors.white,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back, color: AppColors.white),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body:
           isLoading
-              ? Center(child: CircularProgressIndicator())
+              ? Center(
+                child: CircularProgressIndicator(color: AppColors.brownDark),
+              )
               : trainingData == null
-              ? Center(child: Text(errorMessage ?? 'No hay datos disponibles'))
+              ? Center(
+                child: Text(
+                  errorMessage ?? 'No hay datos disponibles',
+                  style: TextStyle(color: AppColors.redAccent, fontSize: 16),
+                ),
+              )
               : SingleChildScrollView(
                 padding: EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    // Si hay error en status, mostramos mensaje arriba con icono de advertencia
                     if (trainingData!['status'] == 'error')
                       Container(
                         padding: EdgeInsets.all(12),
                         margin: EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
-                          color: Colors.orange.shade100,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.orange, width: 1),
+                          color: Colors.orange.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange, width: 1.5),
                         ),
                         child: Row(
                           children: [
@@ -163,7 +189,7 @@ class _TrainingStatusScreenState extends State<TrainingStatusScreen> {
                               child: Text(
                                 'Error en el entrenamiento. Revisa los logs.',
                                 style: TextStyle(
-                                  color: Colors.orange.shade800,
+                                  color: Colors.deepOrange,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -171,11 +197,17 @@ class _TrainingStatusScreenState extends State<TrainingStatusScreen> {
                           ],
                         ),
                       ),
-
-                    Icon(
-                      Icons.train,
-                      size: 80,
-                      color: _getStatusColor(trainingData!['status']),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.brownMedium.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      padding: EdgeInsets.all(20),
+                      child: Icon(
+                        Icons.train,
+                        size: 80,
+                        color: _getStatusColor(trainingData!['status']),
+                      ),
                     ),
                     SizedBox(height: 16),
                     Text(
@@ -183,6 +215,7 @@ class _TrainingStatusScreenState extends State<TrainingStatusScreen> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        color: AppColors.brownDark,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -191,21 +224,25 @@ class _TrainingStatusScreenState extends State<TrainingStatusScreen> {
                       icon: Icons.info,
                       label: 'Job ID',
                       value: trainingData!['job_id']?.toString() ?? '-',
+                      iconColor: Colors.teal,
                     ),
                     _buildInfoCard(
                       icon: Icons.computer,
                       label: 'PID',
                       value: trainingData!['pid']?.toString() ?? '-',
+                      iconColor: Colors.purple,
                     ),
                     _buildInfoCard(
                       icon: Icons.timelapse,
                       label: 'Estado',
                       value: trainingData!['status'] ?? '-',
+                      iconColor: _getStatusColor(trainingData!['status']),
                     ),
                     _buildInfoCard(
                       icon: Icons.access_time,
                       label: 'Tiempo transcurrido',
                       value: trainingData!['elapsed_time_hms'] ?? '-',
+                      iconColor: Colors.orange,
                     ),
                     _buildInfoCard(
                       icon: Icons.bar_chart,
@@ -214,26 +251,31 @@ class _TrainingStatusScreenState extends State<TrainingStatusScreen> {
                           trainingData!['progress_pct'] != null
                               ? '${trainingData!['progress_pct']} %'
                               : '-',
+                      iconColor: Colors.blue,
                     ),
                     _buildInfoCard(
                       icon: Icons.timelapse_outlined,
                       label: 'Tiempo estimado restante',
                       value: trainingData!['estimated_left_hms'] ?? '-',
+                      iconColor: Colors.indigo,
                     ),
                     _buildInfoCard(
                       icon: Icons.folder,
                       label: 'Ruta de logs',
                       value: trainingData!['log_path'] ?? '-',
+                      iconColor: AppColors.brownDark,
                     ),
                     _buildInfoCard(
                       icon: Icons.code,
                       label: 'Epoch actual',
                       value: trainingData!['current_epoch']?.toString() ?? '-',
+                      iconColor: Colors.green,
                     ),
                     _buildInfoCard(
                       icon: Icons.format_list_numbered,
                       label: 'Total epochs',
                       value: trainingData!['total_epochs']?.toString() ?? '-',
+                      iconColor: Colors.green,
                     ),
                     SizedBox(height: 24),
                     ElevatedButton.icon(
@@ -241,9 +283,14 @@ class _TrainingStatusScreenState extends State<TrainingStatusScreen> {
                       icon: Icon(Icons.refresh),
                       label: Text('Actualizar'),
                       style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.brownDark,
+                        foregroundColor: AppColors.white,
                         padding: EdgeInsets.symmetric(
                           horizontal: 32,
                           vertical: 16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
                       ),
                     ),

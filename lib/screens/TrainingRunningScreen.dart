@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../theme/app_colors.dart';
 
 class TrainingRunningScreen extends StatefulWidget {
   final int modelId;
@@ -18,7 +19,6 @@ class _TrainingRunningScreenState extends State<TrainingRunningScreen> {
   bool isLoading = false;
   String? message;
 
-  // Opciones de los parámetros
   final List<String> modelOptions = ['yolo11s', 'yolov8s'];
   final List<int> epochsOptions = [15, 20, 40, 60];
   final List<int> imgszOptions = [320, 480, 640, 800];
@@ -27,7 +27,6 @@ class _TrainingRunningScreenState extends State<TrainingRunningScreen> {
   final List<String> deviceOptions = ['0', '1', 'cpu'];
   final List<String> projectOptions = ['training_runs', 'custom_project'];
 
-  // Valores seleccionados
   String? selectedModel;
   int? selectedEpochs;
   int? selectedImgsz;
@@ -40,7 +39,6 @@ class _TrainingRunningScreenState extends State<TrainingRunningScreen> {
   void initState() {
     super.initState();
     _loadToken();
-    // Valores por defecto
     selectedModel = modelOptions[0];
     selectedEpochs = epochsOptions[0];
     selectedImgsz = imgszOptions[2];
@@ -122,22 +120,37 @@ class _TrainingRunningScreenState extends State<TrainingRunningScreen> {
         children: [
           SizedBox(
             width: 120,
-            child: Text(label, style: TextStyle(fontSize: 16)),
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 16, color: AppColors.brownDark),
+            ),
           ),
           Expanded(
-            child: DropdownButton<T>(
-              value: value,
-              isExpanded: true,
-              items:
-                  items
-                      .map(
-                        (item) => DropdownMenuItem(
-                          value: item,
-                          child: Text(item.toString()),
-                        ),
-                      )
-                      .toList(),
-              onChanged: onChanged,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: AppColors.beigeLight,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.brownMedium),
+              ),
+              child: DropdownButton<T>(
+                value: value,
+                isExpanded: true,
+                underline: SizedBox(),
+                items:
+                    items
+                        .map(
+                          (item) => DropdownMenuItem(
+                            value: item,
+                            child: Text(
+                              item.toString(),
+                              style: TextStyle(color: AppColors.brownDark),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                onChanged: onChanged,
+              ),
             ),
           ),
         ],
@@ -148,17 +161,36 @@ class _TrainingRunningScreenState extends State<TrainingRunningScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Entrenamiento en Proceso')),
+      backgroundColor: AppColors.beigeLight,
+      appBar: AppBar(
+        backgroundColor: AppColors.brownDark,
+        foregroundColor: AppColors.white,
+        title: Text(
+          'Entrenamiento en Proceso',
+          style: TextStyle(color: AppColors.white),
+        ),
+      ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16),
         child: Column(
           children: [
-            Icon(Icons.train, size: 80, color: Colors.blue),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.brownMedium.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              padding: EdgeInsets.all(20),
+              child: Icon(Icons.train, size: 80, color: AppColors.brownDark),
+            ),
             SizedBox(height: 20),
             Text(
               'El entrenamiento del modelo ${widget.modelId} está en progreso...',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18),
+              style: TextStyle(
+                fontSize: 18,
+                color: AppColors.brownDark,
+                fontWeight: FontWeight.w500,
+              ),
             ),
             SizedBox(height: 20),
             _buildDropdown<String>(
@@ -205,11 +237,17 @@ class _TrainingRunningScreenState extends State<TrainingRunningScreen> {
             ),
             SizedBox(height: 24),
             isLoading
-                ? CircularProgressIndicator()
+                ? CircularProgressIndicator(color: AppColors.brownDark)
                 : ElevatedButton(
                   onPressed: _startTraining,
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.brownDark,
+                    foregroundColor: AppColors.white,
                     padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 4,
                   ),
                   child: Text(
                     'Iniciar Entrenamiento',
@@ -223,25 +261,43 @@ class _TrainingRunningScreenState extends State<TrainingRunningScreen> {
               },
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                backgroundColor: Colors.grey[400],
+                backgroundColor: AppColors.blueGray,
+                foregroundColor: AppColors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 2,
               ),
-              child: Text(
-                'Volver',
-                style: TextStyle(fontSize: 16, color: Colors.black),
-              ),
+              child: Text('Volver', style: TextStyle(fontSize: 16)),
             ),
             if (message != null) ...[
               SizedBox(height: 16),
-              Text(
-                message!,
-                style: TextStyle(
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
                   color:
                       message!.toLowerCase().contains('error')
-                          ? Colors.red
-                          : Colors.green,
-                  fontSize: 16,
+                          ? AppColors.redAccent.withOpacity(0.2)
+                          : AppColors.mintGreen.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color:
+                        message!.toLowerCase().contains('error')
+                            ? AppColors.redAccent
+                            : AppColors.brightGreen,
+                  ),
                 ),
-                textAlign: TextAlign.center,
+                child: Text(
+                  message!,
+                  style: TextStyle(
+                    color:
+                        message!.toLowerCase().contains('error')
+                            ? AppColors.redAccent
+                            : AppColors.brightGreen,
+                    fontSize: 16,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ),
             ],
           ],

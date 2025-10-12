@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'TrainingRunningScreen.dart';
 import 'TrainingStatusScreen.dart';
+import '../theme/app_colors.dart';
 
 class TrainingHistoryScreen extends StatefulWidget {
   static const routeName = '/products/models/history';
@@ -47,37 +48,37 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
     try {
       final response = await http.get(
         Uri.parse(
-          'http://127.0.0.1:5000/api/training/model-datasets-simple?modelo_base_id=${_modelId}',
+          'http://127.0.0.1:5000/api/training/model-datasets-simple?modelo_base_id=$_modelId',
         ),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
+
       final responseData = jsonDecode(response.body);
+
       if (response.statusCode == 200 && responseData['success']) {
         setState(() {
           trainingDetails = responseData['data']['data'] ?? [];
-          String? warning;
-          String? success;
-          // Revisa si algún entrenamiento está en 'validando'
-          for (var item in trainingDetails) {
-            if (item['estado']?.toString().toLowerCase() == 'validando') {
-              warning = 'Validando proceso en curso...';
-              break; // Si encuentras uno, ya no necesitas seguir
-            }
 
-            if (item['estado']?.toString().toLowerCase() == 'completado') {
-              success = 'Modelo IA creado...';
-              break; // Si encuentras uno, ya no necesitas seguir
-            }
-          }
+          // Mensajes de advertencia / éxito
+          warningMessage =
+              trainingDetails.any(
+                    (item) =>
+                        item['estado']?.toString().toLowerCase() == 'validando',
+                  )
+                  ? 'Validando proceso en curso...'
+                  : null;
 
-          setState(() {
-            trainingDetails = trainingDetails;
-            warningMessage = warning; // null si no hay ninguno en validando
-            successMessage = success;
-          });
+          successMessage =
+              trainingDetails.any(
+                    (item) =>
+                        item['estado']?.toString().toLowerCase() ==
+                        'completado',
+                  )
+                  ? 'Modelo IA creado con éxito'
+                  : null;
         });
       } else {
         throw Exception(responseData['message'] ?? 'Error al cargar detalles');
@@ -94,7 +95,6 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
   }
 
   Future<void> _completeTraining(int trainingId, String currentStep) async {
-    // 🚀 Si el paso actual es 'entrenando', navegar directamente
     if (currentStep.toLowerCase() == 'entrenando') {
       Navigator.push(
         context,
@@ -102,7 +102,7 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
           builder: (context) => TrainingRunningScreen(modelId: trainingId),
         ),
       );
-      return; // Salir de la función, no hacer la llamada PUT
+      return;
     }
 
     if (currentStep.toLowerCase() == 'look_entrenar') {
@@ -112,7 +112,7 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
           builder: (context) => TrainingStatusScreen(trainingId: trainingId),
         ),
       );
-      return; // Salir de la función, no hacer la llamada PUT
+      return;
     }
 
     try {
@@ -135,41 +135,11 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
       if (response.statusCode == 200 && responseData['success']) {
         final newState = responseData['new_state'];
 
-        // Mostrar mensaje
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Paso actualizado a: $newState')),
-        );
-
-        setState(() {
-          trainingDetails =
-              trainingDetails.map((e) {
-                if (e['id'] == trainingId) e['estado'] = newState;
-                return e;
-              }).toList();
-        });
-
-        // 🚀 Si el nuevo estado es 'entrenando', ir al nuevo screen
-        /*if (newState.toLowerCase() == 'entrenando') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => TrainingRunningScreen(modelId: _modelId),
-            ),
-          );
-        }*/
-
-        // 🚀 Si el nuevo estado es 'look_entrenar', ir al nuevo screen
-        /*if (newState.toLowerCase() == 'look_entrenar') {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => TrainingStatusScreen(trainingId: _modelId),
-            ),
-          );
-        }*/
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Paso actualizado a: $newState')),
+          SnackBar(
+            content: Text('Paso actualizado a: $newState'),
+            backgroundColor: AppColors.mintGreen,
+          ),
         );
 
         setState(() {
@@ -183,125 +153,216 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
         throw Exception(responseData['message'] ?? 'Error al avanzar paso');
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: AppColors.redAccent,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Historial de Entrenamientos')),
+      backgroundColor: AppColors.beigeLight,
+      appBar: AppBar(
+        title: Text('Historial de Entrenamientos'),
+        backgroundColor: AppColors.brownDark,
+        foregroundColor: AppColors.white,
+      ),
       body:
           isLoading
-              ? Center(child: CircularProgressIndicator())
-              : error != null
               ? Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Error: $error'),
-                    SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _loadData,
-                      child: Text('Reintentar'),
-                    ),
-                  ],
+                child: CircularProgressIndicator(color: AppColors.brownMedium),
+              )
+              : error != null
+              ? _buildError()
+              : trainingDetails.isEmpty
+              ? Center(
+                child: Text(
+                  'No hay entrenamientos',
+                  style: TextStyle(fontSize: 16, color: AppColors.brownDark),
                 ),
               )
-              : trainingDetails.isEmpty
-              ? Center(child: Text('No hay entrenamientos'))
-              : SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    ...trainingDetails.map((detail) {
-                      return Card(
-                        elevation: 3,
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        child: ExpansionTile(
-                          leading: Icon(
-                            detail['estado'] == 'completado'
-                                ? Icons.check_circle
-                                : detail['estado'] == 'fallido'
-                                ? Icons.error
-                                : Icons.autorenew,
-                            color:
-                                detail['estado'] == 'completado'
-                                    ? Colors.green
-                                    : detail['estado'] == 'fallido'
-                                    ? Colors.red
-                                    : Colors.orange,
-                          ),
-                          title: Text(
-                            "ID: ${detail['id']} - Estado: ${detail['estado']}",
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Column(
-                                children: [
-                                  _buildRow(
-                                    Icons.storage,
-                                    "Dataset",
-                                    detail['nombre_dataset'] ?? 'N/A',
-                                  ),
-                                  _buildRow(
-                                    Icons.description,
-                                    "Descripción",
-                                    detail['descripcion_dataset'] ?? 'N/A',
-                                  ),
-                                  _buildRow(
-                                    Icons.percent,
-                                    "Validación %",
-                                    detail['porcentaje_validacion'] != null
-                                        ? "${detail['porcentaje_validacion'].toStringAsFixed(2)}%"
-                                        : 'N/A',
-                                  ),
-                                  SizedBox(height: 8),
-                                  detail['estado'] != 'completado' &&
-                                          detail['estado'] != 'cancelado' &&
-                                          detail['estado'] != 'fallido'
-                                      ? ElevatedButton.icon(
-                                        onPressed:
-                                            () => _completeTraining(
-                                              detail['id'],
-                                              detail['estado'],
-                                            ),
-                                        icon: Icon(Icons.play_arrow),
-                                        label: Text('Avanzar'),
-                                      )
-                                      : SizedBox.shrink(),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-
-                    // Aquí mostramos el progress tracker del primer elemento
-                    SizedBox(height: 20),
-                    if (trainingDetails.isNotEmpty)
-                      _buildProgressTracker(trainingDetails.first),
-                  ],
-                ),
-              ),
+              : _buildTrainingList(),
     );
   }
 
-  // Función helper para mostrar una fila con icono y texto
-  Widget _buildRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+  Widget _buildError() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Error: $error', style: TextStyle(color: AppColors.redAccent)),
+          SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadData,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.brownMedium,
+            ),
+            child: Text('Reintentar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrainingList() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          if (warningMessage != null)
+            _buildMessageContainer(
+              warningMessage!,
+              AppColors.gold,
+              AppColors.brownDark,
+              Icons.warning_amber_rounded,
+            ),
+          if (successMessage != null)
+            _buildMessageContainer(
+              successMessage!,
+              AppColors.mintGreen,
+              AppColors.brownDark,
+              Icons.check_circle_rounded,
+            ),
+          ...trainingDetails
+              .map((detail) => _buildTrainingCard(detail))
+              .toList(),
+          SizedBox(height: 20),
+          if (trainingDetails.isNotEmpty)
+            _buildProgressTracker(trainingDetails.first),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMessageContainer(
+    String message,
+    Color bgColor,
+    Color textColor,
+    IconData icon,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(12),
+      margin: EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: bgColor.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: bgColor),
+      ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: Colors.blueGrey),
+          Icon(icon, color: bgColor),
           SizedBox(width: 8),
           Expanded(
-            child: Text("$label: $value", style: TextStyle(fontSize: 16)),
+            child: Text(
+              message,
+              style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrainingCard(dynamic detail) {
+    Color iconColor;
+    IconData iconData;
+
+    switch (detail['estado']) {
+      case 'completado':
+        iconColor = AppColors.brightGreen;
+        iconData = Icons.check_circle;
+        break;
+      case 'fallido':
+        iconColor = AppColors.redAccent;
+        iconData = Icons.error;
+        break;
+      default:
+        iconColor = AppColors.mintGreen;
+        iconData = Icons.autorenew;
+    }
+
+    return Card(
+      elevation: 4,
+      shadowColor: AppColors.brownMedium.withOpacity(0.5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: ExpansionTile(
+        leading: Icon(iconData, color: iconColor, size: 28),
+        title: Text(
+          "ID: ${detail['id']} - Estado: ${detail['estado']}",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.brownDark,
+          ),
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                _buildRow(
+                  Icons.storage,
+                  "Dataset",
+                  detail['nombre_dataset'] ?? 'N/A',
+                ),
+                _buildRow(
+                  Icons.description,
+                  "Descripción",
+                  detail['descripcion_dataset'] ?? 'N/A',
+                ),
+                _buildRow(
+                  Icons.percent,
+                  "Validación %",
+                  detail['porcentaje_validacion'] != null
+                      ? "${detail['porcentaje_validacion'].toStringAsFixed(2)}%"
+                      : 'N/A',
+                ),
+                SizedBox(height: 12),
+                if (detail['estado'] != 'completado' &&
+                    detail['estado'] != 'cancelado' &&
+                    detail['estado'] != 'fallido')
+                  ElevatedButton.icon(
+                    onPressed:
+                        () => _completeTraining(detail['id'], detail['estado']),
+                    icon: Icon(Icons.play_arrow),
+                    label: Text('Avanzar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.brownMedium,
+                      foregroundColor: AppColors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: AppColors.blueGray),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              "$label: $value",
+              style: TextStyle(fontSize: 16, color: AppColors.blackSoft),
+            ),
           ),
         ],
       ),
@@ -340,7 +401,7 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
     final stepColors = {
       'pendiente': Colors.grey,
       'certificar': Colors.blue,
-      'descargar': Colors.orange,
+      'descargar': Colors.pink,
       'ordenar': Colors.purple,
       'etiquetar': Colors.teal,
       'configurar': Colors.brown,
@@ -351,193 +412,114 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
       'completado': Colors.green,
     };
 
+    final stepKeys = steps.keys.toList();
     final currentStatus =
         trainingDetail['estado']?.toString().toLowerCase() ?? 'pendiente';
-    final stepKeys = steps.keys.toList();
     final currentIndex = stepKeys.indexOf(currentStatus);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Progreso del Entrenamiento:',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          'Progreso del Entrenamiento',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: AppColors.brownDark,
+          ),
         ),
-        SizedBox(height: 8),
-
-        // Cuadro de advertencia
-        if (warningMessage != null)
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(12),
-            margin: EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: Colors.yellow[100],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.orange),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    warningMessage!,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange[900],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-        if (successMessage != null)
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(12),
-            margin: EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: Colors.blue[100],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.check_circle_rounded, color: Colors.blue[800]),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    successMessage!,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue[900],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
+        SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey[300]!),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(16),
+            color: AppColors.white,
+            border: Border.all(color: AppColors.brightGreen, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.beigeLight,
+                blurRadius: 8,
+                offset: Offset(0, 3),
+              ),
+            ],
           ),
           child: Column(
             children:
                 stepKeys.asMap().entries.map((entry) {
                   final index = entry.key;
                   final stepKey = entry.value;
-                  final stepDescription = steps[stepKey]!;
-                  final isCompleted = index < currentIndex;
-                  final isCurrent = index == currentIndex;
-                  final isFailed = currentStatus == 'fallido';
-                  final isCanceled = currentStatus == 'cancelado';
-                  final isValidando = currentStatus == 'validando';
-                  final isCompletedFinal = currentStatus == 'completado';
+                  final stepDesc = steps[stepKey]!;
 
-                  Color bgColor = Colors.transparent;
-                  Color textColor = Colors.black;
-                  Widget stepIcon = Icon(
-                    stepIcons[stepKey],
-                    size: 16,
-                    color: stepColors[stepKey],
-                  );
+                  bool isCompleted = index < currentIndex;
+                  bool isCurrent = index == currentIndex;
 
-                  if (isFailed) {
-                    bgColor = Colors.red[50]!;
-                    textColor = Colors.red[800]!;
-                    stepIcon = Icon(Icons.close, size: 16, color: Colors.red);
-                  } else if (isCanceled) {
-                    bgColor = Colors.grey[200]!;
-                    textColor = Colors.grey[700]!;
-                    stepIcon = Icon(Icons.block, size: 16, color: Colors.grey);
-                  } else if (isCompleted) {
-                    stepIcon = Icon(Icons.check, size: 16, color: Colors.green);
-                  } else if (isCurrent) {
-                    bgColor =
-                        isValidando ? Colors.yellow[100]! : Colors.blue[50]!;
-                    textColor =
-                        isValidando ? Colors.orange[900]! : Colors.black;
-                    stepIcon =
-                        isValidando
-                            ? Icon(
-                              Icons.warning_amber_rounded,
-                              size: 18,
-                              color: Colors.orange,
-                            )
-                            : Icon(
-                              stepIcons[stepKey],
-                              size: 16,
-                              color: stepColors[stepKey],
-                            );
-                  }
+                  Color bgColor =
+                      isCurrent
+                          ? stepColors[stepKey]!.withOpacity(0.5)
+                          : isCompleted
+                          ? stepColors[stepKey]!.withOpacity(0.6)
+                          : AppColors.white;
 
                   return Container(
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom:
-                            index < steps.length - 1
-                                ? BorderSide(color: Colors.grey[300]!)
-                                : BorderSide.none,
-                      ),
-                      color: bgColor,
-                    ),
                     padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey[300]!),
+                      ),
+                    ),
                     child: Row(
                       children: [
                         Container(
-                          width: 24,
-                          height: 24,
+                          width: 28,
+                          height: 28,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color:
-                                isCurrent
-                                    ? (isValidando
-                                        ? Colors.orange
-                                        : Colors.blue)
-                                    : isCompleted
-                                    ? Colors.green
+                                isCurrent || isCompleted
+                                    ? stepColors[stepKey]
                                     : Colors.grey[300],
                           ),
-                          child: Center(child: stepIcon),
+                          child: Center(
+                            child: Icon(
+                              stepIcons[stepKey],
+                              size: 16,
+                              color: AppColors.white,
+                            ),
+                          ),
                         ),
                         SizedBox(width: 16),
                         Expanded(
                           child: Text(
-                            stepDescription.toUpperCase(),
+                            stepDesc.toUpperCase(),
                             style: TextStyle(
                               fontWeight:
                                   isCurrent
                                       ? FontWeight.bold
                                       : FontWeight.normal,
-                              color: textColor,
+                              color: AppColors.brownDark,
                             ),
                           ),
                         ),
-                        if (isCurrent &&
-                            !isFailed &&
-                            !isCanceled &&
-                            !isValidando &&
-                            !isCompletedFinal)
+                        if (isCurrent)
                           ElevatedButton(
                             onPressed:
                                 () => _completeTraining(
                                   trainingDetail['id'],
                                   stepKey,
                                 ),
-                            child: Text('COMPLETAR PASO'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
+                              backgroundColor: AppColors.brightGreen,
+                              foregroundColor: AppColors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                               padding: EdgeInsets.symmetric(
                                 horizontal: 12,
                                 vertical: 8,
                               ),
                               textStyle: TextStyle(fontSize: 12),
                             ),
+                            child: Text('COMPLETAR PASO'),
                           ),
                       ],
                     ),

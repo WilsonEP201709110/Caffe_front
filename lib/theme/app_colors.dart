@@ -9,6 +9,7 @@ class AppColors {
   // Colores tecnológicos
   static const Color blueGray = Color(0xFF3A516B); // Azul grisáceo
   static const Color mintGreen = Color(0xFF9FD3C7); // Verde menta
+  static const Color brightGreen = Color(0xFF28A745);
 
   // Colores neutrales
   static const Color white = Color(0xFFFFFFFF);

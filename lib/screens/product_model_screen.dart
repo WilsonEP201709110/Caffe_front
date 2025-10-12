@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../theme/app_colors.dart';
 
 class ProductModelsScreen extends StatefulWidget {
   static const routeName = '/products/models';
@@ -100,6 +101,20 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
         _error = e.toString();
         _isLoadingDatasets = false;
       });
+    }
+  }
+
+  // -------- Estilo personalizado para Cards y Chips --------
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'activo':
+        return AppColors.brightGreen;
+      case 'inactivo':
+        return AppColors.brownMedium;
+      case 'entrenando':
+        return AppColors.gold;
+      default:
+        return AppColors.blueGray;
     }
   }
 
@@ -214,94 +229,114 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
   Future<void> _showAddModelDialog() async {
     final nameController = TextEditingController();
     final versionController = TextEditingController();
-    final frameworkController = TextEditingController();
     final routePathController = TextEditingController();
-    final routeTypeController = TextEditingController();
-    final routeFormatController = TextEditingController();
+
+    String? selectedFramework;
+    String? selectedRouteType;
+    String? selectedRouteFormat;
+
+    final frameworks = ['PyTorch', 'TensorFlow', 'Keras', 'ONNX'];
+    final routeTypes = ['inferencia', 'pesos'];
+    final routeFormats = ['pt', 'h5', 'onnx'];
 
     await showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text('Crear Nuevo Modelo'),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Text(
+              'Crear Nuevo Modelo',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextFormField(
-                    controller: nameController,
-                    decoration: InputDecoration(
-                      labelText: 'Nombre del Modelo*',
-                      border: OutlineInputBorder(),
-                      hintText: 'ej: modelo-leche-v2',
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Este campo es obligatorio';
-                      }
-                      return null;
-                    },
+                  _buildTextField(
+                    nameController,
+                    'Nombre del Modelo*',
+                    'ej: modelo-leche-v2',
                   ),
                   SizedBox(height: 16),
-                  TextFormField(
-                    controller: versionController,
-                    decoration: InputDecoration(
-                      labelText: 'Versión*',
-                      border: OutlineInputBorder(),
-                      hintText: 'ej: 2.0',
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Este campo es obligatorio';
-                      }
-                      return null;
-                    },
-                  ),
+                  _buildTextField(versionController, 'Versión*', 'ej: 2.0'),
                   SizedBox(height: 16),
-                  TextFormField(
-                    controller: frameworkController,
+                  DropdownButtonFormField<String>(
+                    value: selectedFramework,
                     decoration: InputDecoration(
                       labelText: 'Framework*',
-                      border: OutlineInputBorder(),
-                      hintText: 'ej: PyTorch, TensorFlow',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Este campo es obligatorio';
-                      }
-                      return null;
-                    },
+                    hint: Text('ej: PyTorch, TensorFlow'),
+                    items:
+                        frameworks
+                            .map(
+                              (fw) =>
+                                  DropdownMenuItem(value: fw, child: Text(fw)),
+                            )
+                            .toList(),
+                    onChanged: (value) => selectedFramework = value,
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Este campo es obligatorio'
+                                : null,
                   ),
-                  SizedBox(height: 16),
+                  SizedBox(height: 24),
                   Text(
                     'Primera Ruta del Modelo',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
-                  TextFormField(
-                    controller: routeTypeController,
+                  SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: selectedRouteType,
                     decoration: InputDecoration(
                       labelText: 'Tipo de Ruta*',
-                      border: OutlineInputBorder(),
-                      hintText: 'ej: inferencia, pesos',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
+                    hint: Text('ej: inferencia, pesos'),
+                    items:
+                        routeTypes
+                            .map(
+                              (type) => DropdownMenuItem(
+                                value: type,
+                                child: Text(type),
+                              ),
+                            )
+                            .toList(),
+                    onChanged: (value) => selectedRouteType = value,
                   ),
-                  SizedBox(height: 8),
-                  TextFormField(
-                    controller: routePathController,
-                    decoration: InputDecoration(
-                      labelText: 'Ruta*',
-                      border: OutlineInputBorder(),
-                      hintText: 'ej: /models/leche/v2.pt',
-                    ),
+                  SizedBox(height: 12),
+                  _buildTextField(
+                    routePathController,
+                    'Ruta*',
+                    'ej: /models/leche/v2.pt',
                   ),
-                  SizedBox(height: 8),
-                  TextFormField(
-                    controller: routeFormatController,
+                  SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: selectedRouteFormat,
                     decoration: InputDecoration(
                       labelText: 'Formato*',
-                      border: OutlineInputBorder(),
-                      hintText: 'ej: pt, h5',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
+                    hint: Text('ej: pt, h5'),
+                    items:
+                        routeFormats
+                            .map(
+                              (fmt) => DropdownMenuItem(
+                                value: fmt,
+                                child: Text(fmt),
+                              ),
+                            )
+                            .toList(),
+                    onChanged: (value) => selectedRouteFormat = value,
                   ),
                 ],
               ),
@@ -309,16 +344,17 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
+                style: TextButton.styleFrom(foregroundColor: Colors.grey[700]),
                 child: Text('Cancelar'),
               ),
               ElevatedButton(
                 onPressed: () async {
                   if (nameController.text.isEmpty ||
                       versionController.text.isEmpty ||
-                      frameworkController.text.isEmpty ||
-                      routeTypeController.text.isEmpty ||
+                      selectedFramework == null ||
+                      selectedRouteType == null ||
                       routePathController.text.isEmpty ||
-                      routeFormatController.text.isEmpty) {
+                      selectedRouteFormat == null) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Todos los campos son obligatorios'),
@@ -330,17 +366,42 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
                   await _createModel(
                     nameController.text,
                     versionController.text,
-                    frameworkController.text,
-                    routeTypeController.text,
+                    selectedFramework!,
+                    selectedRouteType!,
                     routePathController.text,
-                    routeFormatController.text,
+                    selectedRouteFormat!,
                   );
                   Navigator.pop(context);
                 },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
                 child: Text('Crear Modelo'),
               ),
             ],
           ),
+    );
+  }
+
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label,
+    String hint,
+  ) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        fillColor: Colors.grey[50],
+      ),
     );
   }
 
@@ -392,43 +453,73 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
 
   Future<void> _showAddRouteDialog(int modelId) async {
     final pathController = TextEditingController();
-    final typeController = TextEditingController();
-    final formatController = TextEditingController();
+    String? selectedRouteType;
+    String? selectedRouteFormat;
+
+    final routeTypes = ['inferencia', 'pesos'];
+    final routeFormats = ['pt', 'h5', 'onnx'];
 
     await showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text('Agregar Ruta al Modelo'),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Text(
+              'Agregar Ruta al Modelo',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextFormField(
-                    controller: typeController,
+                  DropdownButtonFormField<String>(
+                    value: selectedRouteType,
                     decoration: InputDecoration(
                       labelText: 'Tipo*',
-                      border: OutlineInputBorder(),
-                      hintText: 'ej: inferencia, pesos',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
+                    hint: Text('ej: inferencia, pesos'),
+                    items:
+                        routeTypes
+                            .map(
+                              (type) => DropdownMenuItem(
+                                value: type,
+                                child: Text(type),
+                              ),
+                            )
+                            .toList(),
+                    onChanged: (value) => selectedRouteType = value,
                   ),
                   SizedBox(height: 16),
-                  TextFormField(
-                    controller: pathController,
-                    decoration: InputDecoration(
-                      labelText: 'Ruta*',
-                      border: OutlineInputBorder(),
-                      hintText: 'ej: /models/leche/v2-weights.pt',
-                    ),
+                  _buildTextField(
+                    pathController,
+                    'Ruta*',
+                    'ej: /models/leche/v2-weights.pt',
                   ),
                   SizedBox(height: 16),
-                  TextFormField(
-                    controller: formatController,
+                  DropdownButtonFormField<String>(
+                    value: selectedRouteFormat,
                     decoration: InputDecoration(
                       labelText: 'Formato*',
-                      border: OutlineInputBorder(),
-                      hintText: 'ej: pt, h5',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
+                    hint: Text('ej: pt, h5'),
+                    items:
+                        routeFormats
+                            .map(
+                              (fmt) => DropdownMenuItem(
+                                value: fmt,
+                                child: Text(fmt),
+                              ),
+                            )
+                            .toList(),
+                    onChanged: (value) => selectedRouteFormat = value,
                   ),
                 ],
               ),
@@ -436,13 +527,14 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
+                style: TextButton.styleFrom(foregroundColor: Colors.grey[700]),
                 child: Text('Cancelar'),
               ),
               ElevatedButton(
                 onPressed: () async {
                   if (pathController.text.isEmpty ||
-                      typeController.text.isEmpty ||
-                      formatController.text.isEmpty) {
+                      selectedRouteType == null ||
+                      selectedRouteFormat == null) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Todos los campos son obligatorios'),
@@ -453,12 +545,20 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
 
                   await _addRouteToModel(
                     modelId,
-                    typeController.text,
+                    selectedRouteType!,
                     pathController.text,
-                    formatController.text,
+                    selectedRouteFormat!,
                   );
                   Navigator.pop(context);
                 },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
                 child: Text('Agregar Ruta'),
               ),
             ],
@@ -530,200 +630,6 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
     }
-  }
-
-  Future<void> _showModelTrainingDetails(int modelId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    List<dynamic> trainingDetails = [];
-    String? error;
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            Future<void> loadData() async {
-              try {
-                final response = await http.get(
-                  Uri.parse(
-                    'http://127.0.0.1:5000/api/training/model-datasets-simple?modelo_base_id=$modelId',
-                  ),
-                  headers: {
-                    'Authorization': 'Bearer $token',
-                    'Content-Type': 'application/json',
-                  },
-                );
-
-                final responseData = jsonDecode(response.body);
-
-                if (response.statusCode == 200 && responseData['success']) {
-                  setState(() {
-                    trainingDetails = responseData['data']['data'] ?? [];
-                  });
-                } else {
-                  throw Exception(
-                    responseData['message'] ?? 'Error al cargar detalles',
-                  );
-                }
-              } catch (e) {
-                setState(() {
-                  error = e.toString();
-                });
-              }
-            }
-
-            Future<void> completeTraining(
-              int trainingId,
-              String currentStep,
-            ) async {
-              try {
-                final response = await http.put(
-                  Uri.parse(
-                    'http://127.0.0.1:5000/api/training/$trainingId/advance-step',
-                  ),
-                  headers: {
-                    'Authorization': 'Bearer $token',
-                    'Content-Type': 'application/json',
-                  },
-                  body: jsonEncode({
-                    'current_step': currentStep,
-                    'observations':
-                        'Entrenamiento completado desde la app móvil',
-                  }),
-                );
-
-                final responseData = jsonDecode(response.body);
-
-                if (response.statusCode == 200 && responseData['success']) {
-                  final newState = responseData['new_state'];
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Paso actualizado a: $newState')),
-                  );
-
-                  setState(() {
-                    trainingDetails =
-                        trainingDetails.map((e) {
-                          if (e['id'] == trainingId) {
-                            e['estado'] = newState;
-                          }
-                          return e;
-                        }).toList();
-                  });
-                } else {
-                  throw Exception(
-                    responseData['message'] ?? 'Error al avanzar paso',
-                  );
-                }
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: ${e.toString()}')),
-                );
-              }
-            }
-
-            if (trainingDetails.isEmpty && error == null) {
-              loadData();
-            }
-
-            return AlertDialog(
-              title: Text('Historial de Entrenamientos'),
-              content: Container(
-                width: double.maxFinite,
-                child:
-                    error != null
-                        ? Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('Error: $error'),
-                            SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: loadData,
-                              child: Text('Reintentar'),
-                            ),
-                          ],
-                        )
-                        : trainingDetails.isEmpty
-                        ? Center(child: CircularProgressIndicator())
-                        : Column(
-                          children: [
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: DataTable(
-                                columns: [
-                                  DataColumn(label: Text('Estado')),
-                                  DataColumn(label: Text('Dataset')),
-                                  DataColumn(label: Text('Descripción')),
-                                  DataColumn(label: Text('Validación %')),
-                                  DataColumn(label: Text('Acciones')),
-                                ],
-                                rows:
-                                    trainingDetails.map((detail) {
-                                      return DataRow(
-                                        cells: [
-                                          DataCell(Text(detail['estado'])),
-                                          DataCell(
-                                            Text(
-                                              detail['nombre_dataset'] ?? 'N/A',
-                                            ),
-                                          ),
-                                          DataCell(
-                                            Text(
-                                              detail['descripcion_dataset'] ??
-                                                  'N/A',
-                                            ),
-                                          ),
-                                          DataCell(
-                                            Text(
-                                              detail['porcentaje_validacion']
-                                                      ?.toStringAsFixed(2) ??
-                                                  'N/A',
-                                            ),
-                                          ),
-                                          DataCell(
-                                            detail['estado'] != 'completado' &&
-                                                    detail['estado'] !=
-                                                        'cancelado' &&
-                                                    detail['estado'] !=
-                                                        'fallido'
-                                                ? ElevatedButton(
-                                                  onPressed:
-                                                      () => completeTraining(
-                                                        detail['id'],
-                                                        detail['estado'],
-                                                      ),
-                                                  child: Text('Avanzar'),
-                                                  style:
-                                                      ElevatedButton.styleFrom(
-                                                        backgroundColor:
-                                                            Colors.blue,
-                                                        foregroundColor:
-                                                            Colors.white,
-                                                      ),
-                                                )
-                                                : Text('No actions'),
-                                          ),
-                                        ],
-                                      );
-                                    }).toList(),
-                              ),
-                            ),
-                            SizedBox(height: 20),
-                            _buildProgressTracker(trainingDetails.first),
-                          ],
-                        ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('Cerrar'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
   }
 
   Widget _buildProgressTracker(Map<String, dynamic> trainingDetail) {
@@ -919,18 +825,23 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
     }
   }
 
+  // -------- Construcción del Screen --------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.beigeLight,
       appBar: AppBar(
+        backgroundColor: AppColors.brownDark,
+        foregroundColor: AppColors.white,
         title: Text(
           _productName != null
               ? 'Modelos de $_productName'
               : 'Modelos de Producto',
+          style: TextStyle(color: AppColors.white),
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, color: AppColors.white),
             onPressed: () {
               _fetchModels();
               _fetchDatasets();
@@ -940,25 +851,47 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddModelDialog,
-        child: Icon(Icons.add),
+        backgroundColor: AppColors.mintGreen,
+        child: Icon(Icons.add, color: AppColors.white),
         tooltip: 'Agregar nuevo modelo',
       ),
       body:
           _isLoading
-              ? Center(child: CircularProgressIndicator())
+              ? Center(
+                child: CircularProgressIndicator(color: AppColors.brownDark),
+              )
               : _error != null
-              ? Center(child: Text(_error!))
+              ? Center(
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: AppColors.redAccent, fontSize: 16),
+                ),
+              )
               : _models.isEmpty
               ? Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.model_training, size: 50, color: Colors.grey),
+                    Icon(
+                      Icons.model_training,
+                      size: 50,
+                      color: AppColors.blueGray,
+                    ),
                     SizedBox(height: 16),
-                    Text('No hay modelos disponibles'),
+                    Text(
+                      'No hay modelos disponibles',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: AppColors.brownDark,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     SizedBox(height: 8),
                     TextButton(
                       onPressed: _showAddModelDialog,
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.mintGreen,
+                      ),
                       child: Text('Crear primer modelo'),
                     ),
                   ],
@@ -970,37 +903,49 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
                 itemBuilder: (context, index) {
                   final model = _models[index];
                   return Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 5,
+                    shadowColor: AppColors.brownMedium.withOpacity(0.3),
                     margin: EdgeInsets.only(bottom: 16),
                     child: ExpansionTile(
                       leading: Icon(
                         Icons.model_training,
-                        color: _getStatusColor(model['status']),
+                        color: _statusColor(model['status']),
                       ),
                       title: Text(
                         model['name'] ?? 'Modelo sin nombre',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.brownDark,
+                        ),
                       ),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Versión: ${model['version']}'),
+                          Text(
+                            'Versión: ${model['version']}',
+                            style: TextStyle(color: AppColors.brownMedium),
+                          ),
                           SizedBox(height: 4),
-                          Row(
+                          Wrap(
+                            spacing: 8,
                             children: [
                               Chip(
                                 label: Text(model['framework']),
-                                backgroundColor: Colors.grey[200],
-                                labelStyle: TextStyle(fontSize: 12),
-                              ),
-                              SizedBox(width: 8),
-                              Chip(
-                                label: Text(_formatStatus(model['status'])),
-                                backgroundColor: _getStatusColor(
-                                  model['status'],
-                                ),
+                                backgroundColor: AppColors.beigeLight,
                                 labelStyle: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.white,
+                                  color: AppColors.brownDark,
+                                ),
+                              ),
+                              Chip(
+                                label: Text(_formatStatus(model['status'])),
+                                backgroundColor: _statusColor(model['status']),
+                                labelStyle: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.white,
                                 ),
                               ),
                             ],
@@ -1011,86 +956,157 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
                         Padding(
                           padding: EdgeInsets.symmetric(
                             horizontal: 16,
-                            vertical: 8,
+                            vertical: 12,
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // Rutas
                               Text(
                                 'Rutas:',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.brownDark,
+                                  fontSize: 16,
+                                ),
                               ),
-                              ...(model['routes'] as List)
-                                  .map(
+                              SizedBox(height: 8),
+                              if (model['routes'] != null)
+                                ...List<Widget>.from(
+                                  (model['routes'] as List).map(
                                     (route) => ListTile(
-                                      leading: Icon(Icons.route, size: 20),
-                                      title: Text(route['path']),
+                                      leading: Icon(
+                                        Icons.alt_route,
+                                        size: 22,
+                                        color: Colors.deepPurpleAccent,
+                                      ),
+                                      title: Text(
+                                        route['path'] ?? '',
+                                        style: TextStyle(
+                                          color: AppColors.brownDark,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
                                       subtitle: Text(
-                                        '${route['type']} (${route['format']})',
+                                        '${route['type'] ?? ''} (${route['format'] ?? ''})',
+                                        style: TextStyle(
+                                          color: AppColors.brownMedium,
+                                        ),
                                       ),
                                       trailing:
-                                          route['is_current']
+                                          route['is_current'] == true
                                               ? Icon(
                                                 Icons.check_circle,
-                                                color: Colors.green,
+                                                color: Colors.greenAccent,
                                               )
                                               : null,
                                     ),
-                                  )
-                                  .toList(),
-                              SizedBox(height: 16),
+                                  ),
+                                ),
+
+                              SizedBox(height: 24),
+
+                              // Entrenamiento
                               Text(
                                 'Entrenamiento:',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.brownDark,
+                                  fontSize: 16,
+                                ),
                               ),
                               SizedBox(height: 8),
-                              ElevatedButton(
+                              ElevatedButton.icon(
                                 onPressed:
                                     () => _showTrainingDialog(model['id']),
-                                child: Text('Entrenar con Dataset'),
+                                icon: Icon(
+                                  Icons.play_arrow,
+                                  color: Colors.white,
+                                ),
+                                label: Text('Entrenar con Dataset'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.deepOrangeAccent,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: 12,
+                                    horizontal: 16,
+                                  ),
+                                ),
                               ),
                               SizedBox(height: 16),
+
+                              // Botones finales
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
-                                  TextButton(
+                                  TextButton.icon(
                                     onPressed:
                                         () => _showAddRouteDialog(model['id']),
-                                    child: Text('Agregar Ruta'),
+                                    icon: Icon(
+                                      Icons.add_circle_outline,
+                                      color: Colors.teal,
+                                    ),
+                                    label: Text('Agregar Ruta'),
                                   ),
                                   SizedBox(width: 8),
-                                  ElevatedButton(
+                                  ElevatedButton.icon(
                                     onPressed:
                                         model['status'] != 'activo'
                                             ? () => _setModelActive(model['id'])
                                             : null,
-                                    child: Text('Activar'),
+                                    icon: Icon(
+                                      Icons.check,
+                                      color: Colors.white,
+                                    ),
+                                    label: Text('Activar'),
                                     style: ElevatedButton.styleFrom(
-                                      foregroundColor: Colors.white,
                                       backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
                                       disabledBackgroundColor: Colors.grey,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 10,
+                                        horizontal: 14,
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      Navigator.pushNamed(
+                                        context,
+                                        '/products/models/history',
+                                        arguments: model['id'],
+                                      );
+                                    },
+                                    icon: Icon(
+                                      Icons.history,
+                                      color: Colors.white,
+                                    ),
+                                    label: Text('Ver Entrenamientos'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.deepPurple,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 10,
+                                        horizontal: 14,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
+                              SizedBox(height: 16),
                             ],
                           ),
                         ),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.pushNamed(
-                              context,
-                              '/products/models/history',
-                              arguments: model['id'], // Le pasas el modelId
-                            );
-                          },
-                          child: Text('Ver Entrenamientos'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.deepPurple,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                        SizedBox(height: 16),
                       ],
                     ),
                   );
@@ -1109,61 +1125,6 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
         return 'Entrenando';
       default:
         return status;
-    }
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'activo':
-        return Colors.green;
-      case 'inactivo':
-        return Colors.grey;
-      case 'entrenando':
-        return Colors.orange;
-      default:
-        return Colors.blue;
-    }
-  }
-
-  String _formatTrainingStatus(String status) {
-    switch (status.toLowerCase()) {
-      case 'pendiente':
-        return 'Pendiente';
-      case 'procesando':
-        return 'Procesando';
-      case 'completado':
-        return 'Completado';
-      case 'fallido':
-        return 'Fallido';
-      case 'cancelado':
-        return 'Cancelado';
-      case 'validando':
-        return 'Validando';
-      case 'ordenar':
-        return 'Ordenando';
-      case 'entrenando':
-        return 'Entrenando';
-      case 'guardar':
-        return 'Guardando';
-      default:
-        return status;
-    }
-  }
-
-  Color _getTrainingStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'pendiente':
-        return Colors.blue;
-      case 'procesando':
-        return Colors.orange;
-      case 'completado':
-        return Colors.green;
-      case 'fallido':
-        return Colors.red;
-      case 'cancelado':
-        return Colors.grey;
-      default:
-        return Colors.grey[300]!;
     }
   }
 }

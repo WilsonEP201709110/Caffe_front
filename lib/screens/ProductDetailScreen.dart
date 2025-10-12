@@ -1,13 +1,13 @@
-import 'package:caffe/screens/product_model_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'product_datasets_screen.dart';
-import 'dart:io';
-import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import '../theme/app_colors.dart';
 import 'DetectionResultScreen.dart';
+import 'product_datasets_screen.dart';
+import 'product_model_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   static const routeName = '/products/detail';
@@ -64,20 +64,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   Future<void> _pickAndAnalyzeImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(
-      source: ImageSource.gallery, // o ImageSource.camera
-    );
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
     final prefs = await SharedPreferences.getInstance();
     final usuarioId = prefs.getInt('user_id') ?? 0;
     final token = prefs.getString('auth_token') ?? '';
 
-    if (_product == null || _product['id'] == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: No se pudo identificar el producto')),
-      );
-      return;
-    }
+    if (_product == null || _product['id'] == null) return;
 
     final productoId = _product['id'];
 
@@ -104,12 +97,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
         if (response.statusCode == 201) {
           final responseData = jsonDecode(response.body)['data'];
-
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Imagen analizada y guardada exitosamente')),
           );
-
-          // Navegar al screen de resultados
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -142,19 +132,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.beigeLight,
       appBar: AppBar(
+        backgroundColor: AppColors.brownDark,
+        foregroundColor: AppColors.white,
         title: Text(_isLoading ? 'Cargando...' : _product['name']),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.edit),
-            onPressed:
-                () => Navigator.pushNamed(
-                  context,
-                  '/products/edit',
-                  arguments: _product['id'],
-                ),
-          ),
-        ],
       ),
       body:
           _isLoading
@@ -167,157 +149,195 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Imagen del producto
-                    Container(
-                      height: 200,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(10),
+                    Center(
+                      child: Container(
+                        width: 150,
+                        height: 150,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child:
+                            _product['image_path'] != null
+                                ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    _product['image_path'],
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                                : Icon(Icons.shopping_basket, size: 50),
                       ),
-                      child:
-                          _product['image_path'] != null
-                              ? ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Image.network(
-                                  _product['image_path'],
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                              : Icon(Icons.shopping_basket, size: 50),
                     ),
-                    SizedBox(height: 20),
-                    // Información principal
+                    SizedBox(height: 16),
+                    // Nombre y categoría
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        Icon(Icons.label, color: AppColors.brownMedium),
+                        SizedBox(width: 8),
                         Text(
-                          '\$${_product['price']}',
+                          _product['name'] ?? '',
                           style: TextStyle(
-                            fontSize: 24,
+                            fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: Theme.of(context).primaryColor,
+                            color: AppColors.brownDark,
                           ),
                         ),
+                        SizedBox(width: 16),
                         Chip(
-                          label: Text(_product['category'] ?? 'Sin categoría'),
-                          backgroundColor: Colors.blue[50],
+                          label: Text(
+                            _product['category'] ?? 'Sin categoría',
+                            style: TextStyle(color: AppColors.white),
+                          ),
+                          backgroundColor: AppColors.brownMedium,
                         ),
                       ],
                     ),
-                    SizedBox(height: 10),
-                    Text(
-                      _product['name'],
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
                     SizedBox(height: 20),
-                    // Descripción
-                    Text(
-                      'Descripción',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    // Información con iconos
+                    Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      _product['description'] ??
-                          'No hay descripción disponible',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                    SizedBox(height: 20),
-                    // Código de barras
-                    Text(
-                      'Código de barras',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      _product['barcode'] ?? 'N/A',
-                      style: TextStyle(fontFamily: 'Monospace', fontSize: 18),
-                    ),
-                    SizedBox(height: 30),
-                    // Botones de acción
-                    // Botones de acción
-                    Row(
-                      children: [
-                        SizedBox(width: 10),
-                        IconButton(
-                          icon: Icon(Icons.favorite_border),
-                          onPressed: () {},
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.grey[100],
-                            padding: EdgeInsets.all(15),
-                          ),
+                      elevation: 3,
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            _infoRow(
+                              Icons.description,
+                              'Descripción',
+                              _product['description'] ?? 'N/A',
+                            ),
+                            Divider(),
+                            _infoRow(
+                              Icons.qr_code,
+                              'Código de barras',
+                              _product['barcode'] ?? 'N/A',
+                            ),
+                            Divider(),
+                            _infoRow(
+                              Icons.dataset,
+                              'Datasets',
+                              '${_product['datasets_count'] ?? 0}',
+                            ),
+                            Divider(),
+                            _infoRow(
+                              Icons.analytics,
+                              'Detecciones',
+                              '${_product['detections_count'] ?? 0}',
+                            ),
+                          ],
                         ),
-                        SizedBox(width: 10),
-                        IconButton(
-                          icon: Icon(Icons.dataset),
-                          onPressed:
-                              () => Navigator.pushNamed(
+                      ),
+                    ),
+                    SizedBox(height: 20),
+                    // Grid de acciones
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        int crossAxisCount;
+
+                        if (constraints.maxWidth >= 500) {
+                          crossAxisCount = 5; // pantallas grandes
+                        } else if (constraints.maxWidth >= 380) {
+                          crossAxisCount = 4; // pantallas medianas
+                        } else {
+                          crossAxisCount = 3; // pantallas pequeñas
+                        }
+
+                        return GridView.count(
+                          crossAxisCount: crossAxisCount,
+                          shrinkWrap: true,
+                          physics: NeverScrollableScrollPhysics(),
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          children: [
+                            _actionButton(Icons.dataset, 'Datasets', () {
+                              Navigator.pushNamed(
                                 context,
                                 ProductDatasetsScreen.routeName,
-                                arguments:
-                                    _product['id'], // Pasamos el product_id
-                              ),
-                          tooltip: 'Ver datasets',
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.grey[100],
-                            padding: EdgeInsets.all(15),
-                          ),
-                        ),
-                        SizedBox(width: 10),
-                        IconButton(
-                          icon: Icon(Icons.model_training),
-                          onPressed:
-                              () => Navigator.pushNamed(
+                                arguments: _product['id'],
+                              );
+                            }),
+                            _actionButton(Icons.model_training, 'Models', () {
+                              Navigator.pushNamed(
                                 context,
                                 ProductModelsScreen.routeName,
-                                arguments:
-                                    _product['id'], // Pasamos el product_id
-                              ),
-                          tooltip: 'Ver models',
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.grey[100],
-                            padding: EdgeInsets.all(15),
-                          ),
-                        ),
-                        SizedBox(width: 10),
-                        IconButton(
-                          icon: Icon(Icons.add_alert),
-                          onPressed:
-                              () => Navigator.pushNamed(
-                                context,
-                                '/detections/new',
-                                arguments:
-                                    _product['id'], // Pasamos el product_id
-                              ),
-                          tooltip: 'Registrar detección',
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.grey[100],
-                            padding: EdgeInsets.all(15),
-                          ),
-                        ),
-                        SizedBox(width: 10),
-                        IconButton(
-                          icon: Icon(Icons.camera_alt),
-                          onPressed: _pickAndAnalyzeImage,
-                          tooltip: 'Analizar imagen',
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.grey[100],
-                            padding: EdgeInsets.all(15),
-                          ),
-                        ),
-                      ],
+                                arguments: _product['id'],
+                              );
+                            }),
+                            _actionButton(
+                              Icons.camera_alt,
+                              'Analizar',
+                              _pickAndAnalyzeImage,
+                            ),
+                            _actionButton(
+                              Icons.favorite_border,
+                              'Favorito',
+                              () {},
+                            ),
+                            _actionButton(Icons.edit, 'Editar', () {}),
+                            _actionButton(Icons.delete, 'Eliminar', () {}),
+                            _actionButton(Icons.share, 'Compartir', () {}),
+                            _actionButton(Icons.history, 'Historial', () {}),
+                            _actionButton(Icons.bar_chart, 'Reporte', () {}),
+                            _actionButton(
+                              Icons.info_outline,
+                              'Detalles',
+                              () {},
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
               ),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String title, String value) {
+    return Row(
+      children: [
+        Icon(icon, color: AppColors.brownMedium),
+        SizedBox(width: 10),
+        Text(
+          '$title: ',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.brownDark,
+          ),
+        ),
+        Expanded(
+          child: Text(value, style: TextStyle(color: AppColors.blackSoft)),
+        ),
+      ],
+    );
+  }
+
+  Widget _actionButton(IconData icon, String label, VoidCallback onTap) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Ink(
+          decoration: ShapeDecoration(
+            color: AppColors.brownMedium.withOpacity(0.1),
+            shape: CircleBorder(),
+          ),
+          child: IconButton(
+            icon: Icon(icon, color: AppColors.brownDark),
+            onPressed: onTap,
+            iconSize: 28,
+          ),
+        ),
+        SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, color: AppColors.brownDark),
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 }

@@ -86,6 +86,11 @@ class DashboardScreen extends StatelessWidget {
             title: 'Acerca de',
             onTap: () => Navigator.pushNamed(context, '/about'),
           ),
+          _DashboardCard(
+            icon: Icons.settings,
+            title: 'Configuraciones',
+            onTap: () => Navigator.pushNamed(context, '/settings'),
+          ),
         ],
       ),
     );
