@@ -500,7 +500,9 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
                             ),
                           ),
                         ),
-                        if (isCurrent)
+                        if (isCurrent &&
+                            stepKey != 'completado' &&
+                            stepKey != 'validando')
                           ElevatedButton(
                             onPressed:
                                 () => _completeTraining(

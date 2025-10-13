@@ -113,6 +113,8 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
         return AppColors.brownMedium;
       case 'entrenando':
         return AppColors.gold;
+      case 'error':
+        return AppColors.redAccent;
       default:
         return AppColors.blueGray;
     }
@@ -1018,7 +1020,10 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
                               SizedBox(height: 8),
                               ElevatedButton.icon(
                                 onPressed:
-                                    () => _showTrainingDialog(model['id']),
+                                    model['has_training']
+                                        ? null
+                                        : () =>
+                                            _showTrainingDialog(model['id']),
                                 icon: Icon(
                                   Icons.play_arrow,
                                   color: Colors.white,
@@ -1044,7 +1049,11 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
                                 children: [
                                   TextButton.icon(
                                     onPressed:
-                                        () => _showAddRouteDialog(model['id']),
+                                        model['status'] == 'inactivo' ||
+                                                model['status'] == 'activo'
+                                            ? () =>
+                                                _showAddRouteDialog(model['id'])
+                                            : null,
                                     icon: Icon(
                                       Icons.add_circle_outline,
                                       color: Colors.teal,
@@ -1054,7 +1063,7 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
                                   SizedBox(width: 8),
                                   ElevatedButton.icon(
                                     onPressed:
-                                        model['status'] != 'activo'
+                                        model['status'] == 'inactivo'
                                             ? () => _setModelActive(model['id'])
                                             : null,
                                     icon: Icon(
@@ -1088,7 +1097,7 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
                                       Icons.history,
                                       color: Colors.white,
                                     ),
-                                    label: Text('Ver Entrenamientos'),
+                                    label: Text('Ver Entrenamiento'),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.deepPurple,
                                       foregroundColor: Colors.white,
@@ -1123,6 +1132,8 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
         return 'Inactivo';
       case 'entrenando':
         return 'Entrenando';
+      case 'error':
+        return 'Error';
       default:
         return status;
     }

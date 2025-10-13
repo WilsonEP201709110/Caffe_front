@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
+import 'TrainingLogScreen.dart';
 
 class TrainingStatusScreen extends StatefulWidget {
   final int trainingId;
@@ -259,11 +260,24 @@ class _TrainingStatusScreenState extends State<TrainingStatusScreen> {
                       value: trainingData!['estimated_left_hms'] ?? '-',
                       iconColor: Colors.indigo,
                     ),
-                    _buildInfoCard(
-                      icon: Icons.folder,
-                      label: 'Ruta de logs',
-                      value: trainingData!['log_path'] ?? '-',
-                      iconColor: AppColors.brownDark,
+                    InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (_) => TrainingLogScreen(
+                                  trainingId: widget.trainingId,
+                                ),
+                          ),
+                        );
+                      },
+                      child: _buildInfoCard(
+                        icon: Icons.folder,
+                        label: 'Ruta de logs',
+                        value: trainingData!['log_path'] ?? '-',
+                        iconColor: AppColors.brownDark,
+                      ),
                     ),
                     _buildInfoCard(
                       icon: Icons.code,
