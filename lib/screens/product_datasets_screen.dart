@@ -16,12 +16,13 @@ class _ProductDatasetsScreenState extends State<ProductDatasetsScreen> {
   bool _isLoading = true;
   String? _error;
   late int _productId;
+  int _minImagesRequired = 0;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _productId = ModalRoute.of(context)!.settings.arguments as int;
-    _fetchDatasets();
+    _fetchMinImagesRequired().then((_) => _fetchDatasets());
   }
 
   Future<void> _fetchDatasets() async {
@@ -36,7 +37,7 @@ class _ProductDatasetsScreenState extends State<ProductDatasetsScreen> {
     try {
       final response = await http.get(
         Uri.parse(
-          'http://127.0.0.1:5000/api/training/datasets?product_id=$_productId',
+          'http://127.0.0.1:5000/api/training/datasets?product_id=$_productId&limit=True',
         ),
         headers: {
           'Authorization': 'Bearer $token',
@@ -200,6 +201,33 @@ class _ProductDatasetsScreenState extends State<ProductDatasetsScreen> {
     }
   }
 
+  Future<void> _fetchMinImagesRequired() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    try {
+      final response = await http.get(
+        Uri.parse('http://127.0.0.1:5000/api/setting/get?clave=limit_images'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        if (responseData['success']) {
+          setState(() {
+            _minImagesRequired = int.parse(responseData['data']['valor']);
+          });
+        }
+      }
+    } catch (e) {
+      // puedes manejar error si quieres
+      print('Error al obtener configuración: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -260,6 +288,13 @@ class _ProductDatasetsScreenState extends State<ProductDatasetsScreen> {
                 itemCount: _datasets.length,
                 itemBuilder: (context, index) {
                   final dataset = _datasets[index];
+                  final imageCount = dataset['image_count'] ?? 0;
+                  final progreso =
+                      (_minImagesRequired > 0)
+                          ? (imageCount / _minImagesRequired).clamp(0.0, 1.0)
+                          : 0.0;
+                  final yaCumple = imageCount >= _minImagesRequired;
+
                   return Card(
                     color: AppColors.white,
                     elevation: 3,
@@ -292,12 +327,27 @@ class _ProductDatasetsScreenState extends State<ProductDatasetsScreen> {
                             style: TextStyle(color: AppColors.blackSoft),
                           ),
                           SizedBox(height: 8),
+                          LinearProgressIndicator(
+                            value: progreso,
+                            backgroundColor: AppColors.beigeLight,
+                            color: yaCumple ? Colors.green : Colors.orange,
+                            minHeight: 8,
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            yaCumple
+                                ? 'Listo ($imageCount imágenes, mínimo $_minImagesRequired)'
+                                : '${(progreso * 100).toStringAsFixed(0)}% completado (mínimo $_minImagesRequired)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: yaCumple ? Colors.green : Colors.orange,
+                            ),
+                          ),
+                          SizedBox(height: 8),
                           Row(
                             children: [
                               Chip(
-                                label: Text(
-                                  '${dataset['image_count'] ?? 0} imágenes',
-                                ),
+                                label: Text('$imageCount imágenes'),
                                 backgroundColor: AppColors.beigeLight,
                                 labelStyle: TextStyle(
                                   fontSize: 12,

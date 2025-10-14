@@ -19,8 +19,8 @@ class _TrainingRunningScreenState extends State<TrainingRunningScreen> {
   bool isLoading = false;
   String? message;
 
-  final List<String> modelOptions = ['yolo11s', 'yolov8s'];
-  final List<int> epochsOptions = [15, 20, 40, 60];
+  final List<String> modelOptions = ['yolo11s', 'yolo11m', 'yolov8s'];
+  final List<int> epochsOptions = [15, 20, 40, 60, 80, 100];
   final List<int> imgszOptions = [320, 480, 640, 800];
   final List<int> batchOptions = [8, 16, 32];
   final List<double> lrOptions = [0.001, 0.005, 0.01, 0.02];
