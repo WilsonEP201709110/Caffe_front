@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
+import '../services/training_service.dart';
 
 class TrainingLogScreen extends StatefulWidget {
   final int trainingId;
@@ -20,6 +21,7 @@ class _TrainingLogScreenState extends State<TrainingLogScreen> {
   bool isLoading = true;
   String? errorMessage;
   String? token;
+  final TrainingService _trainingService = TrainingService();
 
   @override
   void initState() {
@@ -39,35 +41,23 @@ class _TrainingLogScreenState extends State<TrainingLogScreen> {
       errorMessage = null;
     });
 
-    final url = Uri.parse(
-      'http://127.0.0.1:5000/api/training/${widget.trainingId}/log-file',
-    );
-
     try {
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token') ?? '';
+
+      final responseData = await _trainingService.getLogFile(
+        widget.trainingId,
+        token,
       );
 
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        final base64File = responseData['base64_file'] as String?;
-        final decodedContent =
-            base64File != null ? utf8.decode(base64.decode(base64File)) : null;
+      final base64File = responseData['base64_file'] as String?;
+      final decodedContent =
+          base64File != null ? utf8.decode(base64.decode(base64File)) : null;
 
-        setState(() {
-          logContent = decodedContent;
-          logPath = responseData['log_path'];
-        });
-      } else {
-        setState(() {
-          errorMessage =
-              'Error al obtener el log. Código: ${response.statusCode}';
-        });
-      }
+      setState(() {
+        logContent = decodedContent;
+        logPath = responseData['log_path'];
+      });
     } catch (e) {
       setState(() {
         errorMessage = 'Error: $e';

@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
+import '../services/model_service.dart';
+import '../services/dataset_service.dart';
 
 class ProductModelsScreen extends StatefulWidget {
   static const routeName = '/products/models';
@@ -21,6 +23,8 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
   String? _productName;
   int? _selectedModelId;
   int? _selectedDatasetId;
+  final ModelService _modelService = ModelService();
+  final DatasetService _datasetService = DatasetService();
 
   @override
   void didChangeDependencies() {
@@ -36,29 +40,13 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
       _error = null;
     });
 
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
     try {
-      final response = await http.get(
-        Uri.parse('http://127.0.0.1:5000/api/models/product/$_productId'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      final responseData = jsonDecode(response.body);
-
-      if (response.statusCode == 200 && responseData['success']) {
-        setState(() {
-          _models = responseData['data']['models'] ?? [];
-          _productName = responseData['data']['product'];
-          _isLoading = false;
-        });
-      } else {
-        throw Exception(responseData['message'] ?? 'Error al cargar modelos');
-      }
+      final data = await _modelService.fetchModels(_productId);
+      setState(() {
+        _models = data['models'] ?? [];
+        _productName = data['product'];
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -72,30 +60,12 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
       _isLoadingDatasets = true;
     });
 
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
     try {
-      final response = await http.get(
-        Uri.parse(
-          'http://127.0.0.1:5000/api/training/datasets?product_id=$_productId',
-        ),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      final responseData = jsonDecode(response.body);
-
-      if (response.statusCode == 200 && responseData['success']) {
-        setState(() {
-          _datasets = responseData['data']['data'] ?? [];
-          _isLoadingDatasets = false;
-        });
-      } else {
-        throw Exception(responseData['message'] ?? 'Error al cargar datasets');
-      }
+      final data = await _datasetService.fetchAllDatasets(_productId);
+      setState(() {
+        _datasets = data['data'] ?? [];
+        _isLoadingDatasets = false;
+      });
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -121,35 +91,18 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
   }
 
   Future<void> _startTraining(int modelId, int datasetId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
     try {
-      final response = await http.post(
-        Uri.parse('http://127.0.0.1:5000/api/training/start'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'product_id': _productId,
-          'dataset_id': datasetId,
-          'base_model_id': modelId,
-        }),
+      await _datasetService.startTraining(
+        productId: _productId,
+        datasetId: datasetId,
+        baseModelId: modelId,
       );
 
-      final responseData = jsonDecode(response.body);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Entrenamiento iniciado exitosamente')),
+      );
 
-      if (response.statusCode == 201 && responseData['success']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Entrenamiento iniciado exitosamente')),
-        );
-        await _fetchModels();
-      } else {
-        throw Exception(
-          responseData['message'] ?? 'Error al iniciar entrenamiento',
-        );
-      }
+      await _fetchModels();
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -415,37 +368,22 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
     String routePath,
     String routeFormat,
   ) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
     try {
-      final response = await http.post(
-        Uri.parse('http://127.0.0.1:5000/api/models'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'product_id': _productId,
-          'name': name,
-          'version': version,
-          'framework': framework,
-          'routes': [
-            {'type': routeType, 'path': routePath, 'format': routeFormat},
-          ],
-        }),
+      await _modelService.createModel(
+        productId: _productId,
+        name: name,
+        version: version,
+        framework: framework,
+        routeType: routeType,
+        routePath: routePath,
+        routeFormat: routeFormat,
       );
 
-      final responseData = jsonDecode(response.body);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Modelo creado exitosamente')));
 
-      if (response.statusCode == 201 && responseData['success']) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Modelo creado exitosamente')));
-        await _fetchModels();
-      } else {
-        throw Exception(responseData['message'] ?? 'Error al crear modelo');
-      }
+      await _fetchModels();
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -574,29 +512,19 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
     String path,
     String format,
   ) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
     try {
-      final response = await http.post(
-        Uri.parse('http://127.0.0.1:5000/api/models/$modelId/routes'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'type': type, 'path': path, 'format': format}),
+      await _modelService.addRouteToModel(
+        modelId: modelId,
+        type: type,
+        path: path,
+        format: format,
       );
 
-      final responseData = jsonDecode(response.body);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Ruta agregada exitosamente')));
 
-      if (response.statusCode == 201 && responseData['success']) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Ruta agregada exitosamente')));
-        await _fetchModels();
-      } else {
-        throw Exception(responseData['message'] ?? 'Error al agregar ruta');
-      }
+      await _fetchModels();
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -605,28 +533,14 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
   }
 
   Future<void> _setModelActive(int modelId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
     try {
-      final response = await http.put(
-        Uri.parse('http://127.0.0.1:5000/api/models/$modelId/set-active'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      await _modelService.setModelActive(modelId);
 
-      final responseData = jsonDecode(response.body);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Modelo activado exitosamente')));
 
-      if (response.statusCode == 200 && responseData['success']) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Modelo activado exitosamente')));
-        await _fetchModels();
-      } else {
-        throw Exception(responseData['message'] ?? 'Error al activar modelo');
-      }
+      await _fetchModels();
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -792,34 +706,17 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
   }
 
   Future<void> _advanceTrainingStep(int trainingId, String currentStep) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
     try {
-      final response = await http.put(
-        Uri.parse(
-          'http://127.0.0.1:5000/api/training/$trainingId/advance-step2',
-        ),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'current_step': currentStep,
-          'observations': 'Iniciando fase de entrenamiento',
-        }),
+      await _datasetService.advanceTrainingStep(
+        trainingId: trainingId,
+        currentStep: currentStep,
       );
 
-      final responseData = jsonDecode(response.body);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Paso completado exitosamente')));
 
-      if (response.statusCode == 200 && responseData['success']) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Paso completado exitosamente')));
-        _fetchModels();
-      } else {
-        throw Exception(responseData['message'] ?? 'Error al avanzar paso');
-      }
+      _fetchModels();
     } catch (e) {
       ScaffoldMessenger.of(
         context,

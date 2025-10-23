@@ -8,6 +8,9 @@ import '../theme/app_colors.dart';
 import 'DetectionResultScreen.dart';
 import 'product_datasets_screen.dart';
 import 'product_model_screen.dart';
+import '../services/product_service.dart';
+import '../services/training_service.dart';
+import '../utils/image_utils.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   static const routeName = '/products/detail';
@@ -20,6 +23,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   late Map<String, dynamic> _product;
   bool _isLoading = true;
   String? _error;
+  final ProductService _productService = ProductService();
+  final TrainingService _trainingService = TrainingService();
 
   @override
   void didChangeDependencies() {
@@ -34,26 +39,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       _error = null;
     });
 
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
     try {
-      final response = await http.get(
-        Uri.parse('http://127.0.0.1:5000/api/products/$productId'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      if (response.statusCode == 200) {
-        setState(() {
-          _product = jsonDecode(response.body)['data'];
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _error = 'Error al cargar el producto (${response.statusCode})';
-          _isLoading = false;
-        });
-      }
+      final productData = await _productService.fetchProduct(productId);
+      setState(() {
+        _product = productData;
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
         _error = 'Error de conexión: ${e.toString()}';
@@ -64,68 +55,68 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   Future<void> _pickAndAnalyzeImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
-    final prefs = await SharedPreferences.getInstance();
-    final usuarioId = prefs.getInt('user_id') ?? 0;
-    final token = prefs.getString('auth_token') ?? '';
+    // Mostrar diálogo para elegir fuente
+    final ImageSource? source = await showDialog<ImageSource>(
+      context: context,
+      builder:
+          (_) => AlertDialog(
+            title: Text("Selecciona la fuente de la imagen"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, ImageSource.camera),
+                child: Text("Cámara"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, ImageSource.gallery),
+                child: Text("Galería"),
+              ),
+            ],
+          ),
+    );
+
+    if (source == null) return;
+
+    final pickedFile = await picker.pickImage(source: source);
+    if (pickedFile == null) return;
+
+    // Comprimir imagen
+    final compressedBytes = await ImageUtils.compressImage(
+      pickedFile,
+      quality: 70,
+      maxWidth: 1080,
+    );
 
     if (_product == null || _product['id'] == null) return;
-
     final productoId = _product['id'];
+    final dispositivo = 'App1';
 
-    if (pickedFile != null) {
-      final imageBytes = await pickedFile.readAsBytes();
-      final imageBase64 = base64Encode(imageBytes);
-      String dispositivo = 'App1';
-      bool returnImageBase64 = true;
+    try {
+      final responseData = await _trainingService.detectAndSaveImage(
+        imageBytes: compressedBytes,
+        productoId: productoId,
+        dispositivo: dispositivo,
+      );
 
-      try {
-        final response = await http.post(
-          Uri.parse('http://127.0.0.1:5000/api/training/detect-and-save'),
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({
-            'image': imageBase64,
-            'producto_id': productoId,
-            'return_image_base64': returnImageBase64,
-            'dispositivo': dispositivo,
-          }),
-        );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Imagen analizada y guardada exitosamente')),
+      );
 
-        if (response.statusCode == 201) {
-          final responseData = jsonDecode(response.body)['data'];
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Imagen analizada y guardada exitosamente')),
-          );
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder:
-                  (_) => DetectionResultScreen(
-                    deteccionId: responseData['deteccion_id'],
-                    imagenPath: responseData['imagen_path'],
-                    detallesCount: responseData['detalles_count'],
-                  ),
-            ),
-          );
-        } else {
-          final errorData = jsonDecode(response.body);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Error: ${errorData['message'] ?? 'Error desconocido (${response.statusCode})'}',
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (_) => DetectionResultScreen(
+                deteccionId: responseData['deteccion_id'],
+                imagenPath: responseData['imagen_path'],
+                detallesCount: responseData['detalles_count'],
               ),
-            ),
-          );
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error de conexión: ${e.toString()}')),
-        );
-      }
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error de conexión: ${e.toString()}')),
+      );
     }
   }
 

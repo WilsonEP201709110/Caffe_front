@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
+import '../services/training_service.dart';
 
 class TrainingRunningScreen extends StatefulWidget {
   final int modelId;
@@ -35,6 +36,8 @@ class _TrainingRunningScreenState extends State<TrainingRunningScreen> {
   String? selectedDevice;
   String? selectedProject;
 
+  final TrainingService _trainingService = TrainingService();
+
   @override
   void initState() {
     super.initState();
@@ -59,11 +62,7 @@ class _TrainingRunningScreenState extends State<TrainingRunningScreen> {
       message = null;
     });
 
-    final url = Uri.parse(
-      'http://127.0.0.1:5000/api/training/${widget.modelId}/advance-step2',
-    );
-
-    final body = jsonEncode({
+    final payload = {
       "current_step": "entrenando",
       "model": selectedModel,
       "epochs": selectedEpochs,
@@ -72,21 +71,16 @@ class _TrainingRunningScreenState extends State<TrainingRunningScreen> {
       "lr": selectedLr,
       "device": selectedDevice,
       "project": selectedProject,
-    });
+    };
 
     try {
-      final response = await http.put(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: body,
+      final responseData = await _trainingService.advanceStep(
+        widget.modelId,
+        payload,
+        token ?? '',
       );
 
-      final responseData = jsonDecode(response.body);
-
-      if (response.statusCode == 200 && responseData['success']) {
+      if (responseData['success'] == true) {
         setState(() {
           message =
               responseData['warning'] ??

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/detection_service.dart';
 
 class NewDetectionScreen extends StatefulWidget {
   static const routeName = '/detections/new';
@@ -19,6 +20,7 @@ class _NewDetectionScreenState extends State<NewDetectionScreen> {
   final _confidenceController = TextEditingController(text: '0.9');
   final _locationController = TextEditingController();
   final _deviceController = TextEditingController();
+  final DetectionService _detectionService = DetectionService();
   bool _isLoading = false;
 
   @override
@@ -32,38 +34,26 @@ class _NewDetectionScreenState extends State<NewDetectionScreen> {
 
     setState(() => _isLoading = true);
 
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
     try {
-      final response = await http.post(
-        Uri.parse('http://127.0.0.1:5000/api/detections'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'product_id': _productId,
-          'model_id': int.parse(_modelIdController.text),
-          'quantity': int.parse(_quantityController.text),
-          'image_path': _imagePathController.text,
-          'confidence': double.parse(_confidenceController.text),
-          'location': _locationController.text,
-          'device': _deviceController.text,
-        }),
+      await _detectionService.submitDetection(
+        productId: _productId,
+        modelId: int.parse(_modelIdController.text),
+        quantity: int.parse(_quantityController.text),
+        imagePath: _imagePathController.text,
+        confidence: double.parse(_confidenceController.text),
+        location: _locationController.text,
+        device: _deviceController.text,
       );
 
-      if (response.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Detección registrada exitosamente')),
-        );
-        Navigator.pop(context);
-      } else {
-        throw Exception('Error: ${response.statusCode} - ${response.body}');
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Detección registrada exitosamente')),
+      );
+      Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al registrar detección: ${e.toString()}')),
+        SnackBar(
+          content: Text('Error al registrar detección: ${e.toString()}'),
+        ),
       );
     } finally {
       setState(() => _isLoading = false);
@@ -73,9 +63,7 @@ class _NewDetectionScreenState extends State<NewDetectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Nueva Detección'),
-      ),
+      appBar: AppBar(title: Text('Nueva Detección')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -178,9 +166,10 @@ class _NewDetectionScreenState extends State<NewDetectionScreen> {
               SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _isLoading ? null : _submitDetection,
-                child: _isLoading 
-                    ? CircularProgressIndicator(color: Colors.white)
-                    : Text('Registrar Detección'),
+                child:
+                    _isLoading
+                        ? CircularProgressIndicator(color: Colors.white)
+                        : Text('Registrar Detección'),
                 style: ElevatedButton.styleFrom(
                   padding: EdgeInsets.symmetric(vertical: 16),
                 ),

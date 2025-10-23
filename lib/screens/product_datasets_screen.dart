@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
+import '../services/dataset_service.dart';
+import '../services/settings_service.dart';
 
 class ProductDatasetsScreen extends StatefulWidget {
   static const routeName = '/products/datasets';
@@ -17,6 +19,8 @@ class _ProductDatasetsScreenState extends State<ProductDatasetsScreen> {
   String? _error;
   late int _productId;
   int _minImagesRequired = 0;
+  final DatasetService _datasetService = DatasetService();
+  final SettingsService _settingsService = SettingsService();
 
   @override
   void didChangeDependencies() {
@@ -31,30 +35,12 @@ class _ProductDatasetsScreenState extends State<ProductDatasetsScreen> {
       _error = null;
     });
 
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
     try {
-      final response = await http.get(
-        Uri.parse(
-          'http://127.0.0.1:5000/api/training/datasets?product_id=$_productId&limit=True',
-        ),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      final responseData = jsonDecode(response.body);
-
-      if (response.statusCode == 200 && responseData['success']) {
-        setState(() {
-          _datasets = responseData['data']['data'] ?? [];
-          _isLoading = false;
-        });
-      } else {
-        throw Exception(responseData['message'] ?? 'Error al cargar datasets');
-      }
+      final data = await _datasetService.fetchDatasets(_productId);
+      setState(() {
+        _datasets = data['data'] ?? [];
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -166,34 +152,19 @@ class _ProductDatasetsScreenState extends State<ProductDatasetsScreen> {
     String path,
     String description,
   ) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
     try {
-      final response = await http.post(
-        Uri.parse('http://127.0.0.1:5000/api/training/datasets'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'product_id': _productId,
-          'name': name,
-          'path': path,
-          'description': description,
-        }),
+      await _datasetService.createDataset(
+        productId: _productId,
+        name: name,
+        path: path,
+        description: description,
       );
 
-      final responseData = jsonDecode(response.body);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Dataset creado exitosamente')));
 
-      if (response.statusCode == 201 && responseData['success']) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Dataset creado exitosamente')));
-        await _fetchDatasets(); // refrescar lista
-      } else {
-        throw Exception(responseData['message'] ?? 'Error al crear dataset');
-      }
+      await _fetchDatasets(); // refrescar lista
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -202,28 +173,12 @@ class _ProductDatasetsScreenState extends State<ProductDatasetsScreen> {
   }
 
   Future<void> _fetchMinImagesRequired() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
     try {
-      final response = await http.get(
-        Uri.parse('http://127.0.0.1:5000/api/setting/get?clave=limit_images'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        if (responseData['success']) {
-          setState(() {
-            _minImagesRequired = int.parse(responseData['data']['valor']);
-          });
-        }
-      }
+      final minImages = await _settingsService.getMinImagesRequired();
+      setState(() {
+        _minImagesRequired = minImages;
+      });
     } catch (e) {
-      // puedes manejar error si quieres
       print('Error al obtener configuración: $e');
     }
   }

@@ -6,6 +6,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import '../theme/app_colors.dart';
+import '../services/category_service.dart';
+import '../services/product_service.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class AddProductPage extends StatefulWidget {
   @override
@@ -17,6 +20,8 @@ class _AddProductPageState extends State<AddProductPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _barcodeController = TextEditingController();
+  final CategoryService _categoryService = CategoryService();
+  final ProductService _productService = ProductService();
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -39,27 +44,14 @@ class _AddProductPageState extends State<AddProductPage> {
   }
 
   Future<void> _fetchCategories() async {
-    final token = await _getToken();
-    if (token == null) return;
-
     try {
-      final response = await http.get(
-        Uri.parse('http://127.0.0.1:5000/api/category/list'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body)['data'] as List;
-        setState(() {
-          _categories = data.map((e) => e as Map<String, dynamic>).toList();
-          if (_categories.isNotEmpty && _selectedCategory == null) {
-            _selectedCategory = _categories.first;
-          }
-        });
-      }
+      final categories = await _categoryService.getCategories();
+      setState(() {
+        _categories = categories;
+        if (_categories.isNotEmpty && _selectedCategory == null) {
+          _selectedCategory = _categories.first;
+        }
+      });
     } catch (e) {
       print('Error fetching categories: $e');
     }
@@ -85,55 +77,20 @@ class _AddProductPageState extends State<AddProductPage> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
-      final token = await _getToken();
-      if (token == null) {
-        setState(() {
-          _errorMessage = 'No estás autenticado';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      String? imageBase64;
-      if (_selectedImage != null) {
-        if (kIsWeb) {
-          // Para Web
-          final bytes = await _selectedImage!.readAsBytes();
-          imageBase64 = base64Encode(bytes);
-        } else {
-          // Para Mobile
-          final bytes = await File(_selectedImage!.path).readAsBytes();
-          imageBase64 = base64Encode(bytes);
-        }
-      }
-
-      final body = jsonEncode({
-        'name': _nameController.text,
-        'description': _descriptionController.text,
-        'category_id': _selectedCategory?['id'],
-        'barcode': _barcodeController.text,
-        'image': imageBase64,
-        'filename': _selectedImage != null ? _selectedImage!.name : null,
-      });
-
       try {
-        final response = await http.post(
-          Uri.parse('http://127.0.0.1:5000/api/products'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: body,
+        final success = await _productService.createProduct(
+          name: _nameController.text,
+          description: _descriptionController.text,
+          categoryId: _selectedCategory?['id'],
+          barcode: _barcodeController.text,
+          selectedImage: _selectedImage,
         );
 
-        if (response.statusCode == 200 || response.statusCode == 201) {
+        if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Producto agregado exitosamente!')),
           );
           Navigator.pop(context);
-        } else {
-          print('Respuesta: ${response.body}');
-          throw Exception('Error del servidor: ${response.statusCode}');
         }
       } catch (e) {
         ScaffoldMessenger.of(

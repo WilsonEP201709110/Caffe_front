@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
 import 'TrainingLogScreen.dart';
+import '../services/training_service.dart';
 
 class TrainingStatusScreen extends StatefulWidget {
   final int trainingId;
@@ -20,6 +21,7 @@ class _TrainingStatusScreenState extends State<TrainingStatusScreen> {
   bool isLoading = false;
   String? errorMessage;
   String? token;
+  final TrainingService _trainingService = TrainingService();
 
   @override
   void initState() {
@@ -39,25 +41,16 @@ class _TrainingStatusScreenState extends State<TrainingStatusScreen> {
       errorMessage = null;
     });
 
-    final url = Uri.parse(
-      'http://127.0.0.1:5000/api/training/${widget.trainingId}/advance-step2',
-    );
-
-    final body = jsonEncode({"current_step": "look_entrenar"});
-
     try {
-      final response = await http.put(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: body,
+      final trainingService = TrainingService();
+      final response = await trainingService.fetchTrainingStatus(
+        widget.trainingId,
       );
 
-      final responseData = jsonDecode(response.body);
+      final statusCode = response['statusCode'];
+      final responseData = response['body'];
 
-      if (response.statusCode == 200) {
+      if (statusCode == 200) {
         setState(() {
           trainingData = responseData;
           if (responseData['status'] == 'error') {

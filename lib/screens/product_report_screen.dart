@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_colors.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ProductSearchScreen extends StatefulWidget {
   const ProductSearchScreen({Key? key}) : super(key: key);
@@ -25,7 +26,7 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
   bool _isLoadingDetections = false;
 
   // Ajusta si tu API base es diferente
-  static const String apiBase = 'http://127.0.0.1:5000';
+  final String apiBase = dotenv.env['API_URL'] ?? '';
 
   @override
   void initState() {

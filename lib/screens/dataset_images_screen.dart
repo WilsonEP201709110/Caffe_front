@@ -8,6 +8,9 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
+import '../services/dataset_service.dart';
+import '../utils/image_utils.dart';
+import 'package:path_provider/path_provider.dart';
 
 class DatasetImagesScreen extends StatefulWidget {
   static const routeName = '/datasets/images';
@@ -26,6 +29,7 @@ class _DatasetImagesScreenState extends State<DatasetImagesScreen> {
   late String _datasetName;
 
   final ImagePicker _picker = ImagePicker();
+  final DatasetService _datasetService = DatasetService();
 
   @override
   void didChangeDependencies() {
@@ -42,34 +46,17 @@ class _DatasetImagesScreenState extends State<DatasetImagesScreen> {
       _error = null;
     });
 
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
     try {
-      final response = await http.get(
-        Uri.parse(
-          'http://127.0.0.1:5000/api/training/datasets/$_datasetId/images',
-        ),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final result = await _datasetService.getDatasetImages(_datasetId);
 
-      final responseData = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        setState(() {
-          _images = responseData['data']['images'] ?? [];
-          _datasetInfo = {
-            'total_images': responseData['data']['total_images'],
-            'dataset_name': responseData['data']['dataset_name'],
-          };
-          _isLoading = false;
-        });
-      } else {
-        throw Exception(responseData['message'] ?? 'Error al cargar imágenes');
-      }
+      setState(() {
+        _images = result['images'];
+        _datasetInfo = {
+          'total_images': result['total_images'],
+          'dataset_name': result['dataset_name'],
+        };
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -81,45 +68,33 @@ class _DatasetImagesScreenState extends State<DatasetImagesScreen> {
   Future<void> _takeAndUploadPhoto() async {
     try {
       final pickedFile = await _picker.pickImage(source: ImageSource.camera);
-
       if (pickedFile == null) return;
 
-      final bytes = await pickedFile.readAsBytes();
+      // Comprimir la imagen usando tu función
+      final compressedBytes = await ImageUtils.compressImage(
+        pickedFile,
+        quality: 70,
+        maxWidth: 1080,
+      );
       final fileName = pickedFile.name;
 
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      String img64 = base64Encode(bytes);
-
-      final response = await http.post(
-        Uri.parse(
-          'http://127.0.0.1:5000/api/training/datasets/$_datasetId/images/base64',
-        ),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          "image": img64,
-          "filename": fileName,
-          "labeled": true,
-          "approved": true,
-        }),
+      // Subir la imagen comprimida
+      await _datasetService.uploadDatasetImage(
+        datasetId: _datasetId,
+        bytes: compressedBytes,
+        fileName: fileName,
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Imagen subida con éxito')));
-        _fetchImages();
-      } else {
-        throw Exception('Error del servidor: ${response.body}');
-      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Imagen subida con éxito')));
+
+      _fetchImages();
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error al subir imagen')));
+      ).showSnackBar(SnackBar(content: Text('Error al subir imagen: $e')));
+      print('Error al subir imagen: $e');
     }
   }
 
@@ -149,58 +124,54 @@ class _DatasetImagesScreenState extends State<DatasetImagesScreen> {
   }
 
   Future<void> _uploadImageBytes(Uint8List bytes, String fileName) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    String img64 = base64Encode(bytes);
-
-    await http.post(
-      Uri.parse(
-        'http://127.0.0.1:5000/api/training/datasets/$_datasetId/images/base64',
-      ),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        "image": img64,
-        "filename": fileName,
-        "labeled": true,
-        "approved": true,
-      }),
-    );
+    try {
+      await _datasetService.uploadImageFromBytes(
+        datasetId: _datasetId,
+        bytes: bytes,
+        fileName: fileName,
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Imagen subida con éxito')));
+      _fetchImages();
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error al subir imagen')));
+    }
   }
 
   Future<void> _uploadImageFile(File file) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    final bytes = await file.readAsBytes();
-    String img64 = base64Encode(bytes);
-    String fileName = file.path.split('/').last;
-
-    await http.post(
-      Uri.parse(
-        'http://127.0.0.1:5000/api/training/datasets/$_datasetId/images/base64',
-      ),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        "image": img64,
-        "filename": fileName,
-        "labeled": true,
-        "approved": true,
-      }),
-    );
+    try {
+      await _datasetService.uploadImageFromFile(
+        datasetId: _datasetId,
+        file: file,
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Imagen subida con éxito')));
+      _fetchImages();
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error al subir imagen')));
+    }
   }
 
   // Tomar foto
   Future<void> _takePhotoPending() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.camera);
     if (pickedFile == null) return;
-    final bytes = await pickedFile.readAsBytes();
+    final compressedBytes = await ImageUtils.compressImage(
+      pickedFile,
+      quality: 70,
+      maxWidth: 1080,
+    );
     setState(() {
-      _pendingImages.add({'bytes': bytes, 'filename': pickedFile.name});
+      _pendingImages.add({
+        'bytes': compressedBytes,
+        'filename': pickedFile.name,
+      });
     });
   }
 
@@ -211,42 +182,38 @@ class _DatasetImagesScreenState extends State<DatasetImagesScreen> {
       type: FileType.image,
       withData: true,
     );
+
     if (result != null) {
-      setState(() {
-        for (var file in result.files) {
-          if (file.bytes != null) {
-            _pendingImages.add({'bytes': file.bytes!, 'filename': file.name});
+      List<Map<String, dynamic>> compressedImages = [];
+
+      for (var file in result.files) {
+        if (file.bytes != null) {
+          final xFile = XFile.fromData(file.bytes!, name: file.name);
+
+          // Usar compressImage que detecta web/móvil
+          final compressedBytes = await ImageUtils.compressImage(
+            xFile,
+            quality: 70,
+            maxWidth: 1080,
+          );
+
+          if (compressedBytes.isNotEmpty) {
+            compressedImages.add({
+              'bytes': compressedBytes,
+              'filename': file.name,
+            });
           }
         }
+      }
+
+      setState(() {
+        _pendingImages.addAll(compressedImages);
       });
     }
   }
 
   Future<bool> eliminarImagenEnNube(int idImagen) async {
-    final String url =
-        "http://127.0.0.1:5000/api/training/eliminar_imagen/$idImagen";
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
-    try {
-      final response = await http.delete(
-        Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token", // Si usas autenticación JWT
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return true;
-      } else {
-        print("Error eliminando imagen: ${response.body}");
-        return false;
-      }
-    } catch (e) {
-      print("Error en la petición: $e");
-      return false;
-    }
+    return await _datasetService.eliminarImagen(idImagen);
   }
 
   @override
@@ -548,102 +515,89 @@ class _DatasetImagesScreenState extends State<DatasetImagesScreen> {
   Future<void> _uploadPendingImages() async {
     if (_pendingImages.isEmpty) return;
 
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
-    for (var img in _pendingImages) {
-      String img64 = base64Encode(img['bytes']);
-      final response = await http.post(
-        Uri.parse(
-          'http://127.0.0.1:5000/api/training/datasets/$_datasetId/images/base64',
-        ),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          "image": img64,
-          "filename": img['filename'],
-          "labeled": true,
-          "approved": true,
-        }),
-      );
-
-      if (response.statusCode != 200 && response.statusCode != 201) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error subiendo ${img['filename']}')),
+    try {
+      for (var img in _pendingImages) {
+        final success = await _datasetService.uploadDatasetImage(
+          datasetId: _datasetId,
+          bytes: img['bytes'],
+          fileName: img['filename'],
         );
+
+        if (!success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error subiendo ${img['filename']}')),
+          );
+        }
       }
+
+      setState(() {
+        _pendingImages.clear();
+        _fetchImages();
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Imágenes subidas con éxito')));
+    } catch (e, stackTrace) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Ocurrió un error: $e')));
+
+      print('Error al subir imágenes: $e');
+      print(stackTrace);
     }
+  }
 
-    setState(() {
-      _pendingImages.clear();
-      _fetchImages();
-    });
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Imágenes subidas con éxito')));
+  Future<XFile> bytesToXFile(Uint8List bytes, String filename) async {
+    final tempDir = await getTemporaryDirectory();
+    final file = File('${tempDir.path}/$filename');
+    await file.writeAsBytes(bytes);
+    return XFile(file.path);
   }
 
   Future<void> _onLabelButtonPressed(Map<String, dynamic> image) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
+      XFile? imageFile; // nullable
 
-      // Preparar payload según si es base64 o id
-      Map<String, dynamic> payload = {};
       if (image['pending'] == true) {
-        // Imagen en memoria
-        payload['image_base64'] = base64Encode(image['bytes']);
-      } else {
-        // Imagen en la web
-        payload['image_id'] = image['id'];
+        imageFile = await bytesToXFile(
+          Uint8List.fromList(image['bytes']),
+          'temp_image_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        );
+
+        imageFile = XFile.fromData(await ImageUtils.compressImage(imageFile));
       }
 
-      final response = await http.post(
-        Uri.parse('http://127.0.0.1:5000/api/training/label_image_proxy'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(payload),
+      final responseData = await _datasetService.labelImage(
+        imageFile: imageFile,
+        imageId: image['pending'] == true ? null : image['id'],
       );
 
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-
-        // Solo abrir el modal, NO llamar a setState()
-        showDialog(
-          context: context,
-          builder:
-              (context) => AlertDialog(
-                title: Text('Etiqueta de la Imagen'),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (responseData['image'] != null)
-                        Image.memory(base64Decode(responseData['image'])),
-                      SizedBox(height: 8),
-                      if (responseData['coordenadas'] != null)
-                        Text(responseData['coordenadas']),
-                    ],
-                  ),
+      showDialog(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: Text('Etiqueta de la Imagen'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (responseData['imageBytes'] != null)
+                      Image.memory(responseData['imageBytes']),
+                    SizedBox(height: 8),
+                    if (responseData['coordenadas'] != null)
+                      Text(responseData['coordenadas']),
+                  ],
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop(); // solo cierra el modal
-                    },
-                    child: Text('Cerrar'),
-                  ),
-                ],
               ),
-        );
-      } else {
-        throw Exception('Error al obtener etiqueta: ${response.body}');
-      }
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text('Cerrar'),
+                ),
+              ],
+            ),
+      );
     } catch (e) {
       ScaffoldMessenger.of(
         context,

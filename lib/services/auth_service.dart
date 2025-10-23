@@ -32,4 +32,34 @@ class AuthService {
       return {'success': false, 'message': 'Credenciales incorrectas'};
     }
   }
+
+  Future<void> register({
+    required String firstName,
+    required String lastName,
+    required String username,
+    required String email,
+    required String phone,
+    required String password,
+    required String token,
+    required String rol,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/auth/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'first_name': firstName,
+        'last_name': lastName,
+        'username': username,
+        'email': email,
+        'phone': phone,
+        'password': password,
+        'token': token,
+        'rol': rol,
+      }),
+    );
+
+    if (response.statusCode != 201) {
+      throw Exception('Error: ${response.body}');
+    }
+  }
 }

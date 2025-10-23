@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../theme/app_colors.dart';
 import '../constants/app_assets.dart';
+import '../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   @override
@@ -21,6 +22,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _repeatPasswordController =
       TextEditingController();
   final TextEditingController _tokenController = TextEditingController();
+  final AuthService _authService = AuthService();
 
   String _selectedRole = 'trabajador';
   bool _isLoading = false;
@@ -30,32 +32,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _isLoading = true);
 
-    final response = await http.post(
-      Uri.parse('http://127.0.0.1:5000/api/auth/register'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'first_name': _firstNameController.text,
-        'last_name': _lastNameController.text,
-        'username': _usernameController.text,
-        'email': _emailController.text,
-        'phone': _phoneController.text,
-        'password': _passwordController.text,
-        'token': _tokenController.text,
-        'rol': _selectedRole,
-      }),
-    );
+    try {
+      await _authService.register(
+        firstName: _firstNameController.text,
+        lastName: _lastNameController.text,
+        username: _usernameController.text,
+        email: _emailController.text,
+        phone: _phoneController.text,
+        password: _passwordController.text,
+        token: _tokenController.text,
+        rol: _selectedRole,
+      );
 
-    setState(() => _isLoading = false);
-
-    if (response.statusCode == 201) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('¡Registro exitoso! Ahora inicia sesión.')),
       );
-    } else {
+    } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error: ${response.body}')));
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 

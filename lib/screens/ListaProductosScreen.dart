@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
+import '../services/product_service.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -18,6 +19,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   String? _errorMessage;
   String _searchQuery = '';
 
+  final ProductService _productService = ProductService();
   final TextEditingController _searchController = TextEditingController();
 
   Future<String?> _getToken() async {
@@ -26,46 +28,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   Future<void> _fetchProducts() async {
-    final token = await _getToken();
-
-    if (token == null) {
-      setState(() {
-        _errorMessage = 'No estás autenticado';
-        _isLoading = false;
-      });
-      return;
-    }
+    setState(() => _isLoading = true);
 
     try {
-      final response = await http.get(
-        Uri.parse('http://127.0.0.1:5000/api/products'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        setState(() {
-          _products = jsonDecode(response.body)['data'];
-          _filteredProducts = _products;
-          _isLoading = false;
-          _errorMessage = null;
-        });
-      } else if (response.statusCode == 401) {
-        setState(() {
-          _errorMessage = 'Sesión expirada. Por favor inicia sesión nuevamente';
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _errorMessage = 'Error al cargar productos: ${response.statusCode}';
-          _isLoading = false;
-        });
-      }
+      final data = await _productService.fetchProducts();
+      setState(() {
+        _products = data;
+        _filteredProducts = data;
+        _isLoading = false;
+        _errorMessage = null;
+      });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error de conexión: ${e.toString()}';
+        _errorMessage = e.toString();
         _isLoading = false;
       });
     }

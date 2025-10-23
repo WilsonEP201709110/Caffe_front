@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'TrainingRunningScreen.dart';
 import 'TrainingStatusScreen.dart';
 import '../theme/app_colors.dart';
+import '../services/training_service.dart';
 
 class TrainingHistoryScreen extends StatefulWidget {
   static const routeName = '/products/models/history';
@@ -21,6 +22,7 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
   late int _modelId;
   String? warningMessage;
   String? successMessage;
+  final TrainingService _trainingService = TrainingService();
 
   @override
   void didChangeDependencies() {
@@ -45,44 +47,29 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
       isLoading = true;
       error = null;
     });
+
     try {
-      final response = await http.get(
-        Uri.parse(
-          'http://127.0.0.1:5000/api/training/model-datasets-simple?modelo_base_id=$_modelId',
-        ),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final data = await _trainingService.getModelDatasetsSimple(_modelId);
 
-      final responseData = jsonDecode(response.body);
+      setState(() {
+        trainingDetails = data['data'] ?? [];
 
-      if (response.statusCode == 200 && responseData['success']) {
-        setState(() {
-          trainingDetails = responseData['data']['data'] ?? [];
+        warningMessage =
+            trainingDetails.any(
+                  (item) =>
+                      item['estado']?.toString().toLowerCase() == 'validando',
+                )
+                ? 'Validando proceso en curso...'
+                : null;
 
-          // Mensajes de advertencia / éxito
-          warningMessage =
-              trainingDetails.any(
-                    (item) =>
-                        item['estado']?.toString().toLowerCase() == 'validando',
-                  )
-                  ? 'Validando proceso en curso...'
-                  : null;
-
-          successMessage =
-              trainingDetails.any(
-                    (item) =>
-                        item['estado']?.toString().toLowerCase() ==
-                        'completado',
-                  )
-                  ? 'Modelo IA creado con éxito'
-                  : null;
-        });
-      } else {
-        throw Exception(responseData['message'] ?? 'Error al cargar detalles');
-      }
+        successMessage =
+            trainingDetails.any(
+                  (item) =>
+                      item['estado']?.toString().toLowerCase() == 'completado',
+                )
+                ? 'Modelo IA creado con éxito'
+                : null;
+      });
     } catch (e) {
       setState(() {
         error = e.toString();
@@ -116,42 +103,28 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
     }
 
     try {
-      final response = await http.put(
-        Uri.parse(
-          'http://127.0.0.1:5000/api/training/$trainingId/advance-step2',
-        ),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'current_step': currentStep,
-          'observations': 'Entrenamiento completado desde la app móvil',
-        }),
+      final responseData = await _trainingService.advanceStep2(
+        trainingId,
+        currentStep,
+        'Entrenamiento completado desde la app móvil',
       );
 
-      final responseData = jsonDecode(response.body);
+      final newState = responseData['new_state'];
 
-      if (response.statusCode == 200 && responseData['success']) {
-        final newState = responseData['new_state'];
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Paso actualizado a: $newState'),
+          backgroundColor: AppColors.mintGreen,
+        ),
+      );
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Paso actualizado a: $newState'),
-            backgroundColor: AppColors.mintGreen,
-          ),
-        );
-
-        setState(() {
-          trainingDetails =
-              trainingDetails.map((e) {
-                if (e['id'] == trainingId) e['estado'] = newState;
-                return e;
-              }).toList();
-        });
-      } else {
-        throw Exception(responseData['message'] ?? 'Error al avanzar paso');
-      }
+      setState(() {
+        trainingDetails =
+            trainingDetails.map((e) {
+              if (e['id'] == trainingId) e['estado'] = newState;
+              return e;
+            }).toList();
+      });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
