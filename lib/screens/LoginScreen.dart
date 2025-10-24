@@ -62,7 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
               SizedBox(height: 30),
 
               Text(
-                'Bienvenido a Caffé 0.4.1',
+                'Bienvenido a Caffé 0.6.4',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,

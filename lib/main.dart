@@ -15,6 +15,8 @@ import 'screens/TrainingHistoryScreen.dart';
 import 'screens/helper_screen.dart';
 import 'screens/about_screen.dart';
 import 'screens/SettingsScreen.dart';
+import 'screens/models_screen.dart';
+import 'screens/camera_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,6 +50,13 @@ class MyApp extends StatelessWidget {
         '/helper': (context) => HelperScreen(),
         '/about': (context) => AboutScreen(),
         '/settings': (context) => SettingsScreen(),
+        '/models': (context) => ModelsScreen(),
+        '/detections':
+            (context) => RealTimeDetectionScreen(
+              wsUrl: "ws://192.168.0.18:8765", // tu servidor WebSocket
+              modeloId:
+                  "15_M4 40 epoch_80afb11a66744faa8cdc09a4853259ac_best.pt", // ID del modelo que quieres usar
+            ),
       },
     );
   }
