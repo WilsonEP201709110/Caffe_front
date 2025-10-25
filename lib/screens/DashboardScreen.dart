@@ -62,14 +62,19 @@ class DashboardScreen extends StatelessWidget {
             onTap: () => Navigator.pushNamed(context, '/detections'),
           ),
           _DashboardCard(
-            icon: Icons.shopping_basket,
-            title: 'Productos',
-            onTap: () => Navigator.pushNamed(context, '/products'),
-          ),
-          _DashboardCard(
             icon: Icons.model_training,
             title: 'Modelos IA',
             onTap: () => Navigator.pushNamed(context, '/models'),
+          ),
+          _DashboardCard(
+            icon: Icons.category,
+            title: 'Categoria',
+            onTap: () => Navigator.pushNamed(context, '/category'),
+          ),
+          _DashboardCard(
+            icon: Icons.shape_line,
+            title: 'Objetos',
+            onTap: () => Navigator.pushNamed(context, '/products'),
           ),
           _DashboardCard(
             icon: Icons.analytics,
@@ -158,6 +163,7 @@ class _DashboardCard extends StatelessWidget {
             ),
           ),
         ),
+        SizedBox(height: 200), // 🔹 Espacio extra al final
       ],
     );
   }

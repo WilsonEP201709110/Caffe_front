@@ -49,12 +49,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
         SnackBar(content: Text('¡Registro exitoso! Ahora inicia sesión.')),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      // Mostrar mensaje de error en popup
+      _showErrorDialog(e.toString());
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text(
+              'Error',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: Text(
+              message.replaceAll(
+                'Exception: ',
+                '',
+              ), // limpiar formato si viene del backend
+              style: const TextStyle(fontSize: 16),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cerrar'),
+              ),
+            ],
+          ),
+    );
   }
 
   @override
@@ -76,14 +101,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: Stack(
           children: [
             SingleChildScrollView(
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 50),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 50),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Image.asset(AppAssets.logoPrincipal, height: 100),
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                     Text(
                       'Crear Cuenta',
                       style: TextStyle(
@@ -92,60 +117,62 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         color: AppColors.brownDark,
                       ),
                     ),
-                    SizedBox(height: 30),
+                    const SizedBox(height: 30),
 
                     _buildInputField(
                       _firstNameController,
                       'Nombre',
                       Icons.person,
                     ),
-                    SizedBox(height: 15),
+                    const SizedBox(height: 15),
                     _buildInputField(
                       _lastNameController,
                       'Apellido',
                       Icons.person,
                     ),
-                    SizedBox(height: 15),
+                    const SizedBox(height: 15),
                     _buildInputField(
                       _usernameController,
                       'Usuario',
                       Icons.account_circle,
                     ),
-                    SizedBox(height: 15),
+                    const SizedBox(height: 15),
                     _buildInputField(
                       _emailController,
                       'Email',
                       Icons.email,
                       keyboardType: TextInputType.emailAddress,
                     ),
-                    SizedBox(height: 15),
+                    const SizedBox(height: 15),
+                    // Campo teléfono deshabilitado
                     _buildInputField(
                       _phoneController,
-                      'Número de celular',
+                      'Número de celular (deshabilitado)',
                       Icons.phone,
                       keyboardType: TextInputType.phone,
+                      enabled: false,
                     ),
-                    SizedBox(height: 15),
+                    const SizedBox(height: 15),
                     _buildInputField(
                       _passwordController,
                       'Contraseña',
                       Icons.lock,
                       obscureText: true,
                     ),
-                    SizedBox(height: 15),
+                    const SizedBox(height: 15),
                     _buildInputField(
                       _repeatPasswordController,
                       'Repetir Contraseña',
                       Icons.lock,
                       obscureText: true,
                     ),
-                    SizedBox(height: 15),
+                    const SizedBox(height: 15),
                     _buildInputField(
                       _tokenController,
                       'Serial / Token',
                       Icons.vpn_key,
                     ),
-                    SizedBox(height: 15),
+                    const SizedBox(height: 15),
 
                     DropdownButtonFormField<String>(
                       value: _selectedRole,
@@ -170,7 +197,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         fillColor: AppColors.white,
                       ),
                     ),
-                    SizedBox(height: 30),
+                    const SizedBox(height: 30),
 
                     SizedBox(
                       width: double.infinity,
@@ -188,17 +215,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ? CircularProgressIndicator(
                                   color: AppColors.white,
                                 )
-                                : Text(
+                                : const Text(
                                   'Registrarse',
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
-                                    backgroundColor: AppColors.white,
+                                    color: AppColors.white,
                                   ),
                                 ),
                       ),
                     ),
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -228,12 +255,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     IconData icon, {
     bool obscureText = false,
     TextInputType keyboardType = TextInputType.text,
+    bool enabled = true,
   }) {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
+      enabled: enabled,
       keyboardType: keyboardType,
       validator: (value) {
+        if (!enabled) return null; // no validar si está deshabilitado
         if (value == null || value.isEmpty) return 'Campo obligatorio';
         if ((label == 'Repetir Contraseña' || label == 'Contraseña') &&
             _passwordController.text != _repeatPasswordController.text &&

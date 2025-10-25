@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/status.dart' as status;
 import 'dart:ui' as ui;
 
 class RealTimeDetectionScreen extends StatefulWidget {
@@ -26,8 +27,9 @@ class RealTimeDetectionScreen extends StatefulWidget {
 
 class _RealTimeDetectionScreenState extends State<RealTimeDetectionScreen> {
   late CameraController _cameraController;
-  late WebSocketChannel _channel;
+  WebSocketChannel? _channel;
   bool _isStreaming = false;
+  bool _wsConnected = false; // ✅ bandera de conexión
 
   List<Detection> _detections = [];
   double _intervalSeconds = 0.5;
@@ -36,41 +38,74 @@ class _RealTimeDetectionScreenState extends State<RealTimeDetectionScreen> {
   void initState() {
     super.initState();
     _initCamera();
-    _channel = WebSocketChannel.connect(Uri.parse(widget.wsUrl));
+    _connectWebSocket();
+  }
 
-    _channel.stream.listen((message) {
-      final data = json.decode(message);
-      if (data.containsKey("detections")) {
-        List detections = data["detections"];
-        setState(() {
-          _detections = detections.map((d) => Detection.fromJson(d)).toList();
-        });
-      }
-    });
+  // ✅ Conexión segura al WebSocket
+  Future<void> _connectWebSocket() async {
+    try {
+      final channel = WebSocketChannel.connect(Uri.parse(widget.wsUrl));
+
+      channel.stream.listen(
+        (message) {
+          final data = json.decode(message);
+          if (data.containsKey("detections")) {
+            List detections = data["detections"];
+            setState(() {
+              _detections =
+                  detections.map((d) => Detection.fromJson(d)).toList();
+            });
+          }
+        },
+        onError: (error) {
+          debugPrint("❌ Error WebSocket: $error");
+          setState(() => _wsConnected = false);
+        },
+        onDone: () {
+          debugPrint("⚠️ WebSocket cerrado.");
+          setState(() => _wsConnected = false);
+        },
+      );
+
+      setState(() {
+        _channel = channel;
+        _wsConnected = true;
+      });
+    } catch (e) {
+      debugPrint("❌ No se pudo conectar al WebSocket: $e");
+      setState(() => _wsConnected = false);
+    }
   }
 
   Future<void> _initCamera() async {
-    final cameras = await availableCameras();
-    final camera = cameras.firstWhere(
-      (cam) => cam.lensDirection == CameraLensDirection.back,
-    );
+    try {
+      final cameras = await availableCameras();
+      final camera = cameras.firstWhere(
+        (cam) => cam.lensDirection == CameraLensDirection.back,
+      );
 
-    _cameraController = CameraController(
-      camera,
-      ResolutionPreset.high, // 🔹 Usa alta resolución para mejor vista
-      enableAudio: false,
-    );
+      _cameraController = CameraController(
+        camera,
+        ResolutionPreset.high,
+        enableAudio: false,
+      );
 
-    await _cameraController.initialize();
-    if (mounted) setState(() {});
+      await _cameraController.initialize();
+      if (mounted) setState(() {});
+    } catch (e) {
+      debugPrint("❌ Error al inicializar cámara: $e");
+    }
   }
 
   void _startStreaming() {
-    if (_isStreaming) return;
+    if (_isStreaming || !_wsConnected) return;
     _isStreaming = true;
 
     Future<void> sendFrame() async {
-      if (!_isStreaming || !_cameraController.value.isInitialized) return;
+      if (!_isStreaming ||
+          !_cameraController.value.isInitialized ||
+          !_wsConnected)
+        return;
 
       final image = await _cameraController.takePicture();
       final compressedBytes = await compressImage(
@@ -79,12 +114,16 @@ class _RealTimeDetectionScreenState extends State<RealTimeDetectionScreen> {
         maxWidth: 640,
       );
 
-      _channel.sink.add(
-        json.encode({
-          "modelo_id": widget.modeloId,
-          "image_bytes": compressedBytes.toList(),
-        }),
-      );
+      try {
+        _channel?.sink.add(
+          json.encode({
+            "modelo_id": widget.modeloId,
+            "image_bytes": compressedBytes.toList(),
+          }),
+        );
+      } catch (e) {
+        debugPrint("❌ Error enviando frame: $e");
+      }
 
       if (_isStreaming) {
         Future.delayed(
@@ -105,36 +144,58 @@ class _RealTimeDetectionScreenState extends State<RealTimeDetectionScreen> {
   void dispose() {
     _stopStreaming();
     _cameraController.dispose();
-    _channel.sink.close();
+    _channel?.sink.close(status.goingAway);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     if (!_cameraController.value.isInitialized) {
-      return Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    // ✅ Si no hay conexión al WebSocket, mostramos mensaje
+    if (!_wsConnected) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("Detección en tiempo real")),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.wifi_off, color: Colors.red, size: 60),
+              const SizedBox(height: 10),
+              const Text(
+                "❌ No hay conexión con el servidor WebSocket",
+                style: TextStyle(fontSize: 16, color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _connectWebSocket,
+                child: const Text("Reintentar conexión"),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     final screenSize = MediaQuery.of(context).size;
     final cameraAspectRatio = _cameraController.value.aspectRatio;
-
-    // 🔹 Hacemos la cámara más grande (85% del alto total)
     double previewHeight = screenSize.height * 0.7;
     double previewWidth = previewHeight * cameraAspectRatio;
 
-    // Si se pasa del ancho de pantalla, la ajustamos
     if (previewWidth > screenSize.width) {
       previewWidth = screenSize.width;
-      previewHeight = previewWidth / cameraAspectRatio;
+      //previewHeight = previewWidth / cameraAspectRatio;
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text("Detección en tiempo real")),
+      appBar: AppBar(title: const Text("Detección en tiempo real")),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 🔹 Cámara pegada arriba
             Container(
               width: previewWidth,
               height: previewHeight,
@@ -152,10 +213,7 @@ class _RealTimeDetectionScreenState extends State<RealTimeDetectionScreen> {
                 ],
               ),
             ),
-
-            SizedBox(height: 13),
-
-            // 🔹 Controles debajo de la cámara
+            const SizedBox(height: 13),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -166,20 +224,21 @@ class _RealTimeDetectionScreenState extends State<RealTimeDetectionScreen> {
                 DropdownButton<double>(
                   value: _intervalSeconds,
                   items:
-                      [0.2, 0.5, 1.0, 1.5, 2.0, 3.0].map((e) {
-                        return DropdownMenuItem<double>(
-                          value: e,
-                          child: Text("$e segundos"),
-                        );
-                      }).toList(),
+                      [0.2, 0.5, 1.0, 1.5, 2.0, 3.0]
+                          .map(
+                            (e) => DropdownMenuItem<double>(
+                              value: e,
+                              child: Text("$e segundos"),
+                            ),
+                          )
+                          .toList(),
                   onChanged: (value) {
                     if (value != null) setState(() => _intervalSeconds = value);
                   },
                 ),
               ],
             ),
-
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -256,7 +315,6 @@ class DetectionPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (detections.isEmpty) return;
 
-    // Escala según el tamaño real del preview
     final scaleX = size.width / cameraPreviewSize.height;
     final scaleY = size.height / cameraPreviewSize.width;
 
@@ -279,13 +337,14 @@ class DetectionPainter extends CustomPainter {
       canvas.drawRect(rect, paint);
 
       final textSpan = TextSpan(
-        text: "${d.label} c:${d.confiance}",
+        text: "${d.label} c:${d.confiance.toStringAsFixed(2)}",
         style: const TextStyle(
           color: Colors.red,
           fontSize: 14,
           fontWeight: FontWeight.bold,
         ),
       );
+
       textPainter.text = textSpan;
       textPainter.layout();
       textPainter.paint(canvas, Offset(rect.left, rect.top - 16));
