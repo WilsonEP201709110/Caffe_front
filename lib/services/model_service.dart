@@ -114,4 +114,72 @@ class ModelService {
       throw Exception(responseData['message'] ?? 'Error al activar modelo');
     }
   }
+
+  Future<List<Map<String, dynamic>>> fetchUserModels({
+    String? productName,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    if (token == null) throw Exception('No estás autenticado');
+
+    final endpoint =
+        productName != null && productName.isNotEmpty
+            ? '$baseUrl/api/models/user_models?product_name=$productName'
+            : '$baseUrl/api/models/user_models';
+
+    final response = await http.get(
+      Uri.parse(endpoint),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    final responseData = jsonDecode(response.body);
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        responseData['error'] ?? 'Error al cargar modelos del usuario',
+      );
+    }
+
+    List<Map<String, dynamic>> fetchedModels = [];
+
+    // Maneja ambos casos del backend: lista o un solo producto
+    if (responseData['data'] is List) {
+      for (var product in responseData['data']) {
+        for (var model in product['modelos']) {
+          fetchedModels.add({
+            'nombre': model['nombre'],
+            'ruta':
+                model['rutas'].isNotEmpty
+                    ? model['rutas'][0]['ruta']
+                    : 'Sin ruta',
+            'version': model['version'],
+            'fecha_entrenamiento': model['fecha_entrenamiento'],
+            'producto': product['nombre'],
+            'imagen': product['imagen_path'] ?? '',
+          });
+        }
+      }
+    } else if (responseData['data'] is Map) {
+      final product = responseData['data'];
+      for (var model in product['modelos']) {
+        fetchedModels.add({
+          'nombre': model['nombre'],
+          'ruta':
+              model['rutas'].isNotEmpty
+                  ? model['rutas'][0]['ruta']
+                  : 'Sin ruta',
+          'version': model['version'],
+          'fecha_entrenamiento': model['fecha_entrenamiento'],
+          'producto': product['nombre'],
+          'imagen': product['imagen_path'] ?? '',
+        });
+      }
+    }
+
+    return fetchedModels;
+  }
 }

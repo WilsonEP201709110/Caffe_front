@@ -1,8 +1,8 @@
-import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/model_service.dart';
+import '../theme/app_colors.dart';
 
 class ModelsScreen extends StatefulWidget {
   const ModelsScreen({super.key});
@@ -12,146 +12,352 @@ class ModelsScreen extends StatefulWidget {
 }
 
 class _ModelsScreenState extends State<ModelsScreen> {
-  List<FileSystemEntity> localModels = [];
-  final TextEditingController _idController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> models = [];
+  List<Map<String, dynamic>> favorites = [];
+  bool isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadLocalModels();
+    _loadFavorites();
+    _fetchUserModels();
   }
 
-  Future<void> _loadLocalModels() async {
-    final dir = await _getModelsDir();
-    setState(() {
-      localModels = dir.listSync();
-    });
-  }
-
-  Future<Directory> _getModelsDir() async {
-    final dir = await getApplicationDocumentsDirectory();
-    final modelsDir = Directory('${dir.path}/models');
-
-    if (!modelsDir.existsSync()) modelsDir.createSync();
-    return modelsDir;
-  }
-
-  Future<void> _downloadModel(int modeloId) async {
+  Future<void> _loadFavorites() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
-    if (localModels.length >= 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Solo se permiten 10 modelos guardados")),
-      );
-      return;
-    }
-
-    final url = Uri.parse(
-      "http://192.168.0.18:5000/api/models/get_model/$modeloId",
-    );
-
-    if (token == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("No estás autenticado")));
-      return;
-    }
-
-    try {
-      final response = await http.get(
-        url,
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      if (response.statusCode == 200) {
-        final dir = await _getModelsDir();
-        final filePath = '${dir.path}/modelo_$modeloId.tflite';
-        File(filePath).writeAsBytesSync(response.bodyBytes);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Modelo $modeloId descargado correctamente")),
-        );
-
-        _loadLocalModels();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Error al descargar el modelo")),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    final favString = prefs.getString('favorite_models');
+    if (favString != null) {
+      final List decoded = jsonDecode(favString);
+      setState(() => favorites = decoded.cast<Map<String, dynamic>>());
     }
   }
 
-  Future<void> _deleteModel(FileSystemEntity file) async {
-    await file.delete();
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Modelo eliminado")));
-    _loadLocalModels();
+  Future<void> _saveFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('favorite_models', jsonEncode(favorites));
+  }
+
+  Future<void> _fetchUserModels({String? productName}) async {
+    setState(() => isLoading = true);
+    try {
+      final modelService = ModelService();
+      final fetched = await modelService.fetchUserModels(
+        productName: productName,
+      );
+      setState(() => models = fetched);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("💥 Error al obtener modelos: $e")),
+      );
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  void _toggleFavorite(Map<String, dynamic> model) async {
+    setState(() {
+      final exists = favorites.any((fav) => fav['id'] == model['id']);
+      if (exists) {
+        favorites.removeWhere((fav) => fav['id'] == model['id']);
+      } else {
+        favorites.add({
+          'id': model['id'],
+          'nombre': model['nombre'],
+          'producto': model['producto'],
+          'imagen': model['imagen'],
+          'version': model['version'],
+          'fecha_entrenamiento': model['fecha_entrenamiento'],
+          'ruta': model['ruta'],
+        });
+      }
+    });
+    await _saveFavorites();
+  }
+
+  bool _isFavorite(Map<String, dynamic> model) {
+    return favorites.any((fav) => fav['id'] == model['id']);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Modelos guardados")),
+      backgroundColor: AppColors.beigeLight,
+      appBar: AppBar(
+        title: const Text("Modelos de Usuario"),
+        backgroundColor: AppColors.brownDark,
+        foregroundColor: AppColors.white,
+      ),
       body: Padding(
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 🔍 Campo de búsqueda
             Row(
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _idController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: "ID del modelo",
-                      border: OutlineInputBorder(),
+                    controller: _searchController,
+                    style: const TextStyle(color: Colors.black87),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: AppColors.white,
+                      labelText: "Buscar por nombre de producto",
+                      labelStyle: TextStyle(color: AppColors.brownDark),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: AppColors.brownDark),
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 10),
-                ElevatedButton(
+                ElevatedButton.icon(
                   onPressed: () {
-                    final idText = _idController.text.trim();
-                    if (idText.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Ingresa un ID válido")),
-                      );
-                      return;
-                    }
-                    final modeloId = int.tryParse(idText);
-                    if (modeloId == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("ID debe ser un número")),
-                      );
-                      return;
-                    }
-                    _downloadModel(modeloId);
+                    _fetchUserModels(
+                      productName: _searchController.text.trim(),
+                    );
                   },
-                  child: const Text("Descargar"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.brownDark,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  icon: const Icon(Icons.search, color: Colors.white),
+                  label: const Text(
+                    "Buscar",
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ],
             ),
+
             const SizedBox(height: 20),
-            Expanded(
-              child: ListView.builder(
-                itemCount: localModels.length,
-                itemBuilder: (context, index) {
-                  final file = localModels[index];
-                  return ListTile(
-                    title: Text(file.path.split('/').last),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _deleteModel(file),
-                    ),
-                  );
-                },
+
+            // ⭐ Favoritos con collapse
+            if (favorites.isNotEmpty) ...[
+              Text(
+                "⭐ Favoritos (${favorites.length})",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.brownDark,
+                ),
               ),
+              const SizedBox(height: 10),
+              Expanded(
+                flex: 1,
+                child: ListView.builder(
+                  itemCount: favorites.length,
+                  itemBuilder: (context, index) {
+                    final fav = favorites[index];
+                    return Card(
+                      elevation: 4,
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      color: AppColors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ExpansionTile(
+                        leading: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child:
+                              fav['imagen'] != null && fav['imagen'].isNotEmpty
+                                  ? Image.network(
+                                    fav['imagen'],
+                                    width: 60,
+                                    height: 60,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (_, __, ___) => const Icon(
+                                          Icons.image_not_supported,
+                                          color: Colors.grey,
+                                        ),
+                                  )
+                                  : const Icon(
+                                    Icons.image,
+                                    size: 50,
+                                    color: Colors.grey,
+                                  ),
+                        ),
+                        title: Text(
+                          "${index + 1}. ${fav['nombre']}",
+                          style: TextStyle(
+                            color: AppColors.brownDark,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          fav['producto'],
+                          style: TextStyle(
+                            color: AppColors.brownDark.withOpacity(0.8),
+                          ),
+                        ),
+                        childrenPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Versión: ${fav['version']}",
+                                  style: const TextStyle(color: Colors.black54),
+                                ),
+                                Text(
+                                  "Fecha: ${fav['fecha_entrenamiento']}",
+                                  style: const TextStyle(color: Colors.black54),
+                                ),
+                                Text(
+                                  "Ruta: ${fav['ruta']}",
+                                  style: const TextStyle(color: Colors.black54),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () async {
+                                setState(() => favorites.removeAt(index));
+                                await _saveFavorites();
+                              },
+                              icon: const Icon(
+                                Icons.delete,
+                                color: Colors.redAccent,
+                              ),
+                              label: const Text(
+                                "Eliminar",
+                                style: TextStyle(color: Colors.redAccent),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+
+            // 📦 Sección de modelos
+            Text(
+              "📦 Modelos",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.brownDark,
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            Expanded(
+              flex: 2,
+              child:
+                  isLoading
+                      ? const Center(
+                        child: CircularProgressIndicator(color: Colors.brown),
+                      )
+                      : models.isEmpty
+                      ? const Center(
+                        child: Text(
+                          "No hay modelos disponibles.",
+                          style: TextStyle(fontSize: 16, color: Colors.black54),
+                        ),
+                      )
+                      : ListView.builder(
+                        itemCount: models.length,
+                        itemBuilder: (context, index) {
+                          final model = models[index];
+                          final isFav = _isFavorite(model);
+                          return Card(
+                            elevation: 4,
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            color: AppColors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ListTile(
+                              leading: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child:
+                                    model['imagen'] != null &&
+                                            model['imagen'].isNotEmpty
+                                        ? Image.network(
+                                          model['imagen'],
+                                          width: 60,
+                                          height: 60,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (_, __, ___) => const Icon(
+                                                Icons.image_not_supported,
+                                                color: Colors.grey,
+                                              ),
+                                        )
+                                        : const Icon(
+                                          Icons.image,
+                                          size: 50,
+                                          color: Colors.grey,
+                                        ),
+                              ),
+                              title: Text(
+                                model['nombre'],
+                                style: TextStyle(
+                                  color: AppColors.brownDark,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Producto: ${model['producto']}",
+                                    style: TextStyle(color: Colors.brown[700]),
+                                  ),
+                                  Text(
+                                    "Versión: ${model['version']}",
+                                    style: const TextStyle(
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                  Text(
+                                    "Fecha: ${model['fecha_entrenamiento']}",
+                                    style: const TextStyle(
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                  Text(
+                                    "Ruta: ${model['ruta']}",
+                                    style: const TextStyle(
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              trailing: IconButton(
+                                icon: Icon(
+                                  isFav ? Icons.star : Icons.star_border,
+                                  color: isFav ? AppColors.gold : Colors.grey,
+                                  size: 28,
+                                ),
+                                onPressed: () => _toggleFavorite(model),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
             ),
           ],
         ),

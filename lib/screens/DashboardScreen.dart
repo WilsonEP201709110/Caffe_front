@@ -162,8 +162,7 @@ class _DashboardCard extends StatelessWidget {
               ),
             ),
           ),
-        ),
-        SizedBox(height: 200), // 🔹 Espacio extra al final
+        ), // 🔹 Espacio extra al final
       ],
     );
   }

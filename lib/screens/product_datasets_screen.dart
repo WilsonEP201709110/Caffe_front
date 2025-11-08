@@ -309,7 +309,7 @@ class _ProductDatasetsScreenState extends State<ProductDatasetsScreen> {
                                   color: AppColors.brownDark,
                                 ),
                               ),
-                              SizedBox(width: 8),
+                              SizedBox(width: 2),
                               Chip(
                                 label: Text(_formatStatus(dataset['status'])),
                                 backgroundColor: _getStatusColor(

@@ -957,6 +957,11 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
                                     ),
                                     label: Text('Agregar Ruta'),
                                   ),
+                                ],
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
                                   SizedBox(width: 8),
                                   ElevatedButton.icon(
                                     onPressed:

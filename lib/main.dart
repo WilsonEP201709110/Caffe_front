@@ -54,9 +54,8 @@ class MyApp extends StatelessWidget {
         '/models': (context) => ModelsScreen(),
         '/detections':
             (context) => RealTimeDetectionScreen(
-              wsUrl: "ws://192.168.0.18:8765", // tu servidor WebSocket
-              modeloId:
-                  "15_M4 40 epoch_80afb11a66744faa8cdc09a4853259ac_best.pt", // ID del modelo que quieres usar
+              wsUrl:
+                  "ws://192.168.0.13:8765", // tu servidor WebSocket// ID del modelo que quieres usar
             ),
         '/category': (context) => CategoryScreen(),
       },
