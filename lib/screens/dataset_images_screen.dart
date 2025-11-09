@@ -513,15 +513,117 @@ class _DatasetImagesScreenState extends State<DatasetImagesScreen> {
   }
 
   Future<void> _uploadPendingImages() async {
-    if (_pendingImages.isEmpty) return;
+    if (_pendingImages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay imágenes pendientes por subir')),
+      );
+      return;
+    }
+
+    int total = _pendingImages.length;
+    int uploaded = 0;
+    bool isCancelled = false;
+    late void Function(void Function()) setDialogState;
+
+    // Mostramos el popup (no bloqueante)
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            setDialogState = setStateDialog;
+            double progress = total > 0 ? uploaded / total : 0.0;
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              titlePadding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.cloud_upload, color: Colors.blue.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        // 👈 evita overflow
+                        child: Text(
+                          'Subiendo imágenes...',
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16, // 👈 más pequeño
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: Colors.grey[300],
+                    color: Colors.blue.shade400,
+                    minHeight: 8,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Progreso: $uploaded / $total',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  const SizedBox(height: 6),
+                  if (uploaded < total)
+                    Text(
+                      'Subiendo: ${_pendingImages[uploaded]['filename']}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.black54,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    isCancelled = true;
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Cancelar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    // Esperar a que el popup se monte
+    await Future.delayed(const Duration(milliseconds: 250));
 
     try {
       for (var img in _pendingImages) {
+        if (isCancelled) break;
+
         final success = await _datasetService.uploadDatasetImage(
           datasetId: _datasetId,
           bytes: img['bytes'],
           fileName: img['filename'],
         );
+
+        uploaded++;
+        setDialogState(() {});
 
         if (!success) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -530,19 +632,25 @@ class _DatasetImagesScreenState extends State<DatasetImagesScreen> {
         }
       }
 
+      if (!isCancelled && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+
       setState(() {
         _pendingImages.clear();
-        _fetchImages();
       });
+      await _fetchImages();
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Imágenes subidas con éxito')));
+      if (!isCancelled) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Imágenes subidas con éxito')),
+        );
+      }
     } catch (e, stackTrace) {
+      if (Navigator.of(context).canPop()) Navigator.of(context).pop();
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Ocurrió un error: $e')));
-
       print('Error al subir imágenes: $e');
       print(stackTrace);
     }

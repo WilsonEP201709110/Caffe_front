@@ -135,6 +135,105 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
     }
   }
 
+  Future<void> _updateTrainingStatus(int trainingId) async {
+    final TextEditingController estadoController = TextEditingController();
+
+    // Opciones de estados posibles (ajusta según tu lógica del backend)
+    final estados = [
+      'pendiente',
+      'certificar',
+      'validando',
+      'entrenando',
+      'completado',
+      'descargar',
+      'ordenar',
+      'configurar',
+      'guardar',
+    ];
+
+    String? selectedEstado;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Cambiar estado del entrenamiento'),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Nuevo estado',
+                  border: OutlineInputBorder(),
+                ),
+                value: selectedEstado,
+                items:
+                    estados
+                        .map(
+                          (estado) => DropdownMenuItem(
+                            value: estado,
+                            child: Text(estado.toUpperCase()),
+                          ),
+                        )
+                        .toList(),
+                onChanged: (value) => setState(() => selectedEstado = value),
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (selectedEstado == null) return;
+
+                Navigator.pop(context);
+                try {
+                  final result = await _trainingService.updateTrainingStatus(
+                    trainingId: trainingId,
+                    estado: selectedEstado!,
+                    observaciones:
+                        'Estado actualizado manualmente desde app móvil',
+                  );
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(result['message'] ?? 'Estado actualizado'),
+                      backgroundColor: AppColors.mintGreen,
+                    ),
+                  );
+
+                  // Actualizar la lista local
+                  setState(() {
+                    trainingDetails =
+                        trainingDetails.map((e) {
+                          if (e['id'] == trainingId)
+                            e['estado'] = selectedEstado;
+                          return e;
+                        }).toList();
+                  });
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: AppColors.redAccent,
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.brownDark,
+                foregroundColor: AppColors.white,
+              ),
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -182,31 +281,38 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
   }
 
   Widget _buildTrainingList() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          if (warningMessage != null)
-            _buildMessageContainer(
-              warningMessage!,
-              AppColors.gold,
-              AppColors.brownDark,
-              Icons.warning_amber_rounded,
-            ),
-          if (successMessage != null)
-            _buildMessageContainer(
-              successMessage!,
-              AppColors.mintGreen,
-              AppColors.brownDark,
-              Icons.check_circle_rounded,
-            ),
-          ...trainingDetails
-              .map((detail) => _buildTrainingCard(detail))
-              .toList(),
-          SizedBox(height: 20),
-          if (trainingDetails.isNotEmpty)
-            _buildProgressTracker(trainingDetails.first),
-        ],
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          32,
+        ), // 👈 espacio extra inferior
+        child: Column(
+          children: [
+            if (warningMessage != null)
+              _buildMessageContainer(
+                warningMessage!,
+                AppColors.gold,
+                AppColors.brownDark,
+                Icons.warning_amber_rounded,
+              ),
+            if (successMessage != null)
+              _buildMessageContainer(
+                successMessage!,
+                AppColors.mintGreen,
+                AppColors.brownDark,
+                Icons.check_circle_rounded,
+              ),
+            ...trainingDetails
+                .map((detail) => _buildTrainingCard(detail))
+                .toList(),
+            const SizedBox(height: 20),
+            if (trainingDetails.isNotEmpty)
+              _buildProgressTracker(trainingDetails.first),
+          ],
+        ),
       ),
     );
   }
@@ -316,6 +422,25 @@ class _TrainingHistoryScreenState extends State<TrainingHistoryScreen> {
                       ),
                     ),
                   ),
+                if (detail['estado'] == 'fallido') ...[
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => _updateTrainingStatus(detail['id']),
+                    icon: const Icon(Icons.sync),
+                    label: const Text('Cambiar estado'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.gold,
+                      foregroundColor: AppColors.brownDark,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

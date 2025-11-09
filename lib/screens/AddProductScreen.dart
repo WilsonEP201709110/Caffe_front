@@ -88,7 +88,7 @@ class _AddProductPageState extends State<AddProductPage> {
 
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Producto agregado exitosamente!')),
+            SnackBar(content: Text('Objeto agregado exitosamente!')),
           );
           Navigator.pop(context);
         }
@@ -132,10 +132,7 @@ class _AddProductPageState extends State<AddProductPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Agregar Producto',
-          style: TextStyle(color: AppColors.white),
-        ),
+        title: Text('Agregar Objeto', style: TextStyle(color: AppColors.white)),
         backgroundColor: AppColors.brownDark,
         foregroundColor: AppColors.white,
       ),
@@ -180,7 +177,7 @@ class _AddProductPageState extends State<AddProductPage> {
               TextFormField(
                 controller: _nameController,
                 decoration: InputDecoration(
-                  labelText: 'Nombre del producto',
+                  labelText: 'Nombre del objeto',
                   prefixIcon: Icon(
                     Icons.drive_file_rename_outline,
                     color: AppColors.brownDark,

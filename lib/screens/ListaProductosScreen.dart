@@ -71,7 +71,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     return Scaffold(
       backgroundColor: AppColors.beigeLight,
       appBar: AppBar(
-        title: Text('Productos'),
+        title: Text('Objetos'),
         backgroundColor: AppColors.brownDark,
         foregroundColor: AppColors.white,
       ),
@@ -89,7 +89,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
               controller: _searchController,
               onChanged: _filterProducts,
               decoration: InputDecoration(
-                hintText: 'Buscar producto',
+                hintText: 'Buscar objeto',
                 prefixIcon: Icon(Icons.search, color: AppColors.brownDark),
                 filled: true,
                 fillColor: AppColors.white,
@@ -137,7 +137,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       : _filteredProducts.isEmpty
                       ? Center(
                         child: Text(
-                          'No se encontraron productos',
+                          'No se encontraron objetos',
                           style: TextStyle(color: AppColors.brownDark),
                         ),
                       )
@@ -177,7 +177,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                        'Eliminar producto: ${product['name']}',
+                                        'Eliminar objeto: ${product['name']}',
                                       ),
                                     ),
                                   );

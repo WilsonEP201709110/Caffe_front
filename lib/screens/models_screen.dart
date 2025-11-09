@@ -103,7 +103,7 @@ class _ModelsScreenState extends State<ModelsScreen> {
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: AppColors.white,
-                      labelText: "Buscar por nombre de producto",
+                      labelText: "Buscar por nombre de objeto",
                       labelStyle: TextStyle(color: AppColors.brownDark),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -323,7 +323,7 @@ class _ModelsScreenState extends State<ModelsScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    "Producto: ${model['producto']}",
+                                    "Objeto: ${model['producto']}",
                                     style: TextStyle(color: Colors.brown[700]),
                                   ),
                                   Text(

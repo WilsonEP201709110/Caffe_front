@@ -50,53 +50,55 @@ class DashboardScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: GridView.count(
-        crossAxisCount: 2,
-        padding: EdgeInsets.all(16),
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        children: [
-          _DashboardCard(
-            icon: Icons.camera_alt,
-            title: 'Nueva Detección',
-            onTap: () => Navigator.pushNamed(context, '/detections'),
-          ),
-          _DashboardCard(
-            icon: Icons.model_training,
-            title: 'Modelos IA',
-            onTap: () => Navigator.pushNamed(context, '/models'),
-          ),
-          _DashboardCard(
-            icon: Icons.category,
-            title: 'Categoria',
-            onTap: () => Navigator.pushNamed(context, '/category'),
-          ),
-          _DashboardCard(
-            icon: Icons.shape_line,
-            title: 'Objetos',
-            onTap: () => Navigator.pushNamed(context, '/products'),
-          ),
-          _DashboardCard(
-            icon: Icons.analytics,
-            title: 'Reportes',
-            onTap: () => Navigator.pushNamed(context, '/products/reports'),
-          ),
-          _DashboardCard(
-            icon: Icons.help_outline,
-            title: 'Guía Entrenamiento',
-            onTap: () => Navigator.pushNamed(context, '/helper'),
-          ),
-          _DashboardCard(
-            icon: Icons.info_outline,
-            title: 'Acerca de',
-            onTap: () => Navigator.pushNamed(context, '/about'),
-          ),
-          _DashboardCard(
-            icon: Icons.settings,
-            title: 'Configuraciones',
-            onTap: () => Navigator.pushNamed(context, '/settings'),
-          ),
-        ],
+      body: SafeArea(
+        child: GridView.count(
+          crossAxisCount: 2,
+          padding: const EdgeInsets.all(16),
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 16,
+          children: [
+            _DashboardCard(
+              icon: Icons.camera_alt,
+              title: 'Nueva Detección',
+              onTap: () => Navigator.pushNamed(context, '/detections'),
+            ),
+            _DashboardCard(
+              icon: Icons.model_training,
+              title: 'Modelos IA',
+              onTap: () => Navigator.pushNamed(context, '/models'),
+            ),
+            _DashboardCard(
+              icon: Icons.category,
+              title: 'Categoria',
+              onTap: () => Navigator.pushNamed(context, '/category'),
+            ),
+            _DashboardCard(
+              icon: Icons.shape_line,
+              title: 'Objetos',
+              onTap: () => Navigator.pushNamed(context, '/products'),
+            ),
+            _DashboardCard(
+              icon: Icons.analytics,
+              title: 'Reportes',
+              onTap: () => Navigator.pushNamed(context, '/products/reports'),
+            ),
+            _DashboardCard(
+              icon: Icons.help_outline,
+              title: 'Guía Entrenamiento',
+              onTap: () => Navigator.pushNamed(context, '/helper'),
+            ),
+            _DashboardCard(
+              icon: Icons.info_outline,
+              title: 'Acerca de',
+              onTap: () => Navigator.pushNamed(context, '/about'),
+            ),
+            _DashboardCard(
+              icon: Icons.settings,
+              title: 'Configuraciones',
+              onTap: () => Navigator.pushNamed(context, '/settings'),
+            ),
+          ],
+        ),
       ),
     );
   }

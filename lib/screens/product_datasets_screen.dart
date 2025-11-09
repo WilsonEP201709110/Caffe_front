@@ -190,7 +190,7 @@ class _ProductDatasetsScreenState extends State<ProductDatasetsScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.brownDark,
         foregroundColor: AppColors.white,
-        title: Text('Datasets de Producto'),
+        title: Text('Datasets de Objeto'),
         actions: [
           IconButton(icon: Icon(Icons.refresh), onPressed: _fetchDatasets),
         ],

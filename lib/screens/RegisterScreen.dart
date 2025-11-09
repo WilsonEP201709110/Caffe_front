@@ -24,7 +24,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _tokenController = TextEditingController();
   final AuthService _authService = AuthService();
 
-  String _selectedRole = 'trabajador';
+  String _selectedRole = 'analista';
   bool _isLoading = false;
 
   Future<void> _register() async {
@@ -177,7 +177,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     DropdownButtonFormField<String>(
                       value: _selectedRole,
                       items:
-                          ['admin', 'analista', 'trabajador']
+                          ['analista', 'inspector']
                               .map(
                                 (role) => DropdownMenuItem(
                                   value: role,

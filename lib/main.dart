@@ -55,7 +55,8 @@ class MyApp extends StatelessWidget {
         '/detections':
             (context) => RealTimeDetectionScreen(
               wsUrl:
-                  "ws://192.168.0.13:8765", // tu servidor WebSocket// ID del modelo que quieres usar
+                  dotenv.env['WS_URL'] ??
+                  "", // tu servidor WebSocket// ID del modelo que quieres usar
             ),
         '/category': (context) => CategoryScreen(),
       },

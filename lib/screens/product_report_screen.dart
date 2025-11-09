@@ -81,10 +81,10 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
           _products = decoded['data'] is List ? decoded['data'] as List : [];
         });
       } else {
-        _showSnack('Error al buscar productos (${response.statusCode})');
+        _showSnack('Error al buscar objetos (${response.statusCode})');
       }
     } catch (e) {
-      _showSnack('Error de conexión al buscar productos');
+      _showSnack('Error de conexión al buscar objetos');
     } finally {
       setState(() {
         _isLoading = false;
@@ -157,7 +157,7 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
         product['image'] ??
         product['imagen'];
     final imageUrl = _buildImageUrl(imagePath as String?);
-    final name = product['name'] ?? product['nombre'] ?? 'Producto';
+    final name = product['name'] ?? product['nombre'] ?? 'Objeto';
     final barcode = product['barcode'] ?? product['codigo'] ?? '';
     final price = product['price'] ?? product['precio'];
     final status = product['status']; // asumimos 1 = activo
@@ -275,7 +275,6 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
   }
 
   Widget _detectionCard(dynamic detection) {
-    // detection puede contener: date, image_path, imagen_path, product, quantity, confidence, user, model_version, details
     final imgPath =
         detection['image_path'] ??
         detection['imagen_path'] ??
@@ -283,16 +282,19 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
         detection['imagen'];
     final imageUrl = _buildImageUrl(imgPath as String?);
     final dateStr = detection['date'] ?? detection['fecha'];
+
     DateTime? dateTime;
     try {
       if (dateStr != null) dateTime = DateTime.parse(dateStr);
     } catch (_) {
       dateTime = null;
     }
+
     final formattedDate =
         dateTime != null
             ? DateFormat('yyyy-MM-dd HH:mm').format(dateTime.toLocal())
             : (dateStr ?? '');
+
     final quantity = detection['quantity'] ?? detection['cantidad'] ?? 0;
     double? confRaw;
     try {
@@ -309,101 +311,115 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
       elevation: 3,
       margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        leading: GestureDetector(
-          onTap: () {
-            if (imageUrl != null) _openImageDialog(imageUrl);
-          },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              width: 72,
-              height: 72,
-              color: AppColors.beigeLight,
-              child:
-                  imageUrl != null
-                      ? Image.network(
-                        imageUrl,
-                        width: 72,
-                        height: 72,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(child: CircularProgressIndicator());
-                        },
-                        errorBuilder:
-                            (context, err, stack) => Icon(
-                              Icons.broken_image,
-                              color: AppColors.brownDark,
-                            ),
-                      )
-                      : Icon(Icons.image, color: AppColors.brownDark),
+      color: AppColors.white,
+      child: IntrinsicHeight(
+        // ✅ asegura que leading, subtitle y trailing se alineen sin overflow
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
+          leading: GestureDetector(
+            onTap: () {
+              if (imageUrl != null) _openImageDialog(imageUrl);
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: 72,
+                height: 72,
+                color: AppColors.beigeLight,
+                child:
+                    imageUrl != null
+                        ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          },
+                          errorBuilder:
+                              (context, err, stack) => Icon(
+                                Icons.broken_image,
+                                color: AppColors.brownDark,
+                              ),
+                        )
+                        : Icon(Icons.image, color: AppColors.brownDark),
+              ),
             ),
           ),
-        ),
-        title: Text(
-          formattedDate,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: AppColors.brownDark,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 6),
-            Text(
-              'Cantidad: $quantity',
-              style: TextStyle(color: AppColors.brownDark.withOpacity(0.8)),
+          title: Text(
+            formattedDate,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: AppColors.brownDark,
             ),
-            const SizedBox(height: 4),
-            if (detection['user'] != null)
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 6),
               Text(
-                'Usuario: ${detection['user']}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.brownDark.withOpacity(0.7),
-                ),
+                'Cantidad: $quantity',
+                style: TextStyle(color: AppColors.brownDark.withOpacity(0.8)),
               ),
-            if (detection['model_version'] != null)
-              Text(
-                'Modelo: ${detection['model_version']}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.brownDark.withOpacity(0.7),
-                ),
-              ),
-          ],
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            confPercent != null
-                ? Text(
-                  '${confPercent.toStringAsFixed(1)}%',
+              const SizedBox(height: 4),
+              if (detection['user'] != null)
+                Text(
+                  'Usuario: ${detection['user']}',
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.brownDark,
+                    fontSize: 12,
+                    color: AppColors.brownDark.withOpacity(0.7),
                   ),
-                )
-                : Text(
-                  'N/A',
-                  style: TextStyle(color: AppColors.brownDark.withOpacity(0.7)),
                 ),
-            const SizedBox(height: 6),
-            IconButton(
-              icon: Icon(Icons.open_in_full, color: AppColors.brownDark),
-              onPressed: () {
-                if (imageUrl != null) _openImageDialog(imageUrl);
-              },
-            ),
-          ],
+              if (detection['model_version'] != null)
+                Text(
+                  'Modelo: ${detection['model_version']}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.brownDark.withOpacity(0.7),
+                  ),
+                ),
+            ],
+          ),
+          trailing: Column(
+            mainAxisAlignment:
+                MainAxisAlignment
+                    .spaceBetween, // ✅ distribuye verticalmente sin overflow
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              confPercent != null
+                  ? Text(
+                    '${confPercent.toStringAsFixed(1)}%',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.brownDark,
+                    ),
+                  )
+                  : Text(
+                    'N/A',
+                    style: TextStyle(
+                      color: AppColors.brownDark.withOpacity(0.7),
+                    ),
+                  ),
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: Icon(
+                  Icons.open_in_full,
+                  color: AppColors.brownDark,
+                  size: 20,
+                ),
+                onPressed: () {
+                  if (imageUrl != null) _openImageDialog(imageUrl);
+                },
+              ),
+            ],
+          ),
+          onTap: () => _showDetectionDetails(detection),
         ),
-        onTap: () {
-          // Expandir detalles: aquí podrías mostrar detalle de bounding boxes o lista de objetos
-          _showDetectionDetails(detection);
-        },
       ),
     );
   }
@@ -582,7 +598,7 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
               decoration: InputDecoration(
                 filled: true,
                 fillColor: AppColors.white,
-                hintText: 'Buscar producto...',
+                hintText: 'Buscar objeto...',
                 prefixIcon: Icon(Icons.search, color: AppColors.brownDark),
                 contentPadding: const EdgeInsets.symmetric(
                   vertical: 12,
@@ -647,7 +663,7 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
                   const SizedBox(height: 48),
                   Center(
                     child: Text(
-                      'Busca un producto para empezar',
+                      'Busca un objeto para empezar',
                       style: TextStyle(color: AppColors.brownDark),
                     ),
                   ),
@@ -671,7 +687,7 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
         product['image'] ??
         product['imagen'];
     final productImageUrl = _buildImageUrl(productImage as String?);
-    final name = product['name'] ?? product['nombre'] ?? 'Producto';
+    final name = product['name'] ?? product['nombre'] ?? 'Objeto';
     final barcode = product['barcode'] ?? product['codigo'] ?? '';
     final price = product['price'] ?? product['precio'];
     final desc = product['description'] ?? product['descripcion'] ?? '';
@@ -810,7 +826,7 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
                   child: Text(
                     _isLoadingDetections
                         ? 'Cargando detecciones...'
-                        : 'No hay detecciones recientes para este producto',
+                        : 'No hay detecciones recientes para este objeto',
                     style: TextStyle(
                       color: AppColors.brownDark.withOpacity(0.8),
                     ),
@@ -862,12 +878,18 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
     return Scaffold(
       backgroundColor: AppColors.beigeLight,
       appBar: AppBar(
-        title: const Text('Buscar Producto'),
+        title: const Text('Buscar Objeto'),
         backgroundColor: AppColors.brownDark,
         foregroundColor: AppColors.white,
       ),
-      body: Column(
-        children: [_buildSearchArea(), Expanded(child: _buildBody())],
+      resizeToAvoidBottomInset: true, // ✅ evita overflow si aparece el teclado
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 12), // ✅ margen extra inferior
+          child: Column(
+            children: [_buildSearchArea(), Expanded(child: _buildBody())],
+          ),
+        ),
       ),
     );
   }

@@ -84,7 +84,7 @@ class ProductService {
     } else if (response.statusCode == 401) {
       throw Exception('Sesión expirada. Por favor inicia sesión nuevamente');
     } else {
-      throw Exception('Error al cargar productos: ${response.statusCode}');
+      throw Exception('Error al cargar objetos: ${response.statusCode}');
     }
   }
 
@@ -103,7 +103,7 @@ class ProductService {
       final data = jsonDecode(response.body);
       return data['data'];
     } else {
-      throw Exception('Error al cargar el producto (${response.statusCode})');
+      throw Exception('Error al cargar el objeto (${response.statusCode})');
     }
   }
 }

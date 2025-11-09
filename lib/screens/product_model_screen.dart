@@ -735,7 +735,7 @@ class _ProductModelsScreenState extends State<ProductModelsScreen> {
         title: Text(
           _productName != null
               ? 'Modelos de $_productName'
-              : 'Modelos de Producto',
+              : 'Modelos de Objeto',
           style: TextStyle(color: AppColors.white),
         ),
         actions: [

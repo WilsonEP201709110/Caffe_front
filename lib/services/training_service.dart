@@ -160,4 +160,40 @@ class TrainingService {
       'body': jsonDecode(response.body),
     };
   }
+
+  Future<Map<String, dynamic>> updateTrainingStatus({
+    required int trainingId,
+    required String estado,
+    String? observaciones,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token') ?? '';
+
+    final url = Uri.parse('$baseUrl/api/training/$trainingId/update-status');
+
+    final body = {
+      'estado': estado,
+      if (observaciones != null && observaciones.isNotEmpty)
+        'observaciones': observaciones,
+    };
+
+    final response = await http.put(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && data['success'] == true) {
+      return data;
+    } else {
+      throw Exception(
+        data['message'] ?? 'Error al actualizar el estado del entrenamiento',
+      );
+    }
+  }
 }
